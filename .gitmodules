@@ -1,0 +1,3 @@
+[submodule "firebird"]
+	path = firebird
+	url = https://gitlab.alelec.net/corona/firebird.git
