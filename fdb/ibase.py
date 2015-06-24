@@ -30,6 +30,10 @@ import operator
 import platform
 import os
 
+libpath = os.path.join(os.path.dirname(__file__), 'lib') + os.pathsep
+if libpath not in os.environ['PATH']:
+    os.environ['PATH'] = libpath + os.environ['PATH']
+
 PYTHON_MAJOR_VER = sys.version_info[0]
 
 #-------------------
@@ -1160,19 +1164,21 @@ class fbclient_API(object):
             # Next elif is necessary hotfix for ctypes issue
             # http://bugs.python.org/issue16283
             elif sys.platform == 'win32':
-                fb_library_name = find_library('fbclient.dll')
+                fb_library_name = find_library('fbembed.dll')
                 if not fb_library_name:
-                    # let's try windows registry
-                    if PYTHON_MAJOR_VER == 3:
-                        import winreg
-                    else:
-                        import _winreg as winreg
+                    fb_library_name = find_library('fbclient.dll')
+                    if not fb_library_name:
+                        # let's try windows registry
+                        if PYTHON_MAJOR_VER == 3:
+                            import winreg
+                        else:
+                            import _winreg as winreg
 
-                    # try find via installed Firebird server
-                    baseKey = 'SOFTWARE\Firebird Project\Firebird Server\Instances'
-                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, baseKey)
-                    instFold = winreg.QueryValueEx(key,'DefaultInstance')
-                    fb_library_name = os.path.join(os.path.join(instFold[0], 'bin'), 'fbclient.dll')
+                        # try find via installed Firebird server
+                        baseKey = 'SOFTWARE\Firebird Project\Firebird Server\Instances'
+                        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, baseKey)
+                        instFold = winreg.QueryValueEx(key,'DefaultInstance')
+                        fb_library_name = os.path.join(os.path.join(instFold[0], 'bin'), 'fbclient.dll')
             else:
                 fb_library_name = find_library('fbclient')
 
