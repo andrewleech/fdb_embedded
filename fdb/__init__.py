@@ -20,8 +20,8 @@
 #
 # See LICENSE.TXT for details.
 
-from fdb.fbcore import *
 from fdb.fbcore import __version__
+from fdb.fbcore import *
 from fdb import services
 #from fdb import schema
 #from fdb import utils

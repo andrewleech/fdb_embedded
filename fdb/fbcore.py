@@ -42,6 +42,7 @@ try:
 except ImportError:
     # Python 3
     from itertools import zip_longest as izip_longest
+
 from fdb.ibase import (frb_info_att_charset, isc_dpb_activate_shadow,
     isc_dpb_address_path, isc_dpb_allocation, isc_dpb_begin_log,
     isc_dpb_buffer_length, isc_dpb_cache_manager, isc_dpb_cdd_pathname,
@@ -133,17 +134,17 @@ from fdb.ibase import (frb_info_att_charset, isc_dpb_activate_shadow,
     charset_map,
 
     #isc_sqlcode, isc_sql_interprete, fb_interpret, isc_dsql_execute_immediate,
-    XSQLDA_PTR, ISC_SHORT, ISC_LONG, ISC_SCHAR, ISC_UCHAR, ISC_QUAD,
+    # XSQLDA_PTR, ISC_SHORT, ISC_LONG, ISC_SCHAR, ISC_UCHAR, ISC_QUAD,
     SHRT_MIN, SHRT_MAX, USHRT_MAX, INT_MIN, INT_MAX, LONG_MIN, LONG_MAX,
 
 
     SQL_TEXT, SQL_VARYING, SQL_SHORT, SQL_LONG, SQL_FLOAT, SQL_DOUBLE,
     SQL_D_FLOAT, SQL_TIMESTAMP, SQL_BLOB, SQL_ARRAY, SQL_QUAD, SQL_TYPE_TIME,
     SQL_TYPE_DATE, SQL_INT64, SUBTYPE_NUMERIC, SUBTYPE_DECIMAL,
-    MAX_BLOB_SEGMENT_SIZE, ISC_INT64,
+    MAX_BLOB_SEGMENT_SIZE, #ISC_INT64,
 
-    XSQLVAR, ISC_TEB, RESULT_VECTOR, ISC_STATUS, ISC_STATUS_ARRAY, ISC_STATUS_PTR,
-    ISC_EVENT_CALLBACK, ISC_ARRAY_DESC,
+    # XSQLVAR, ISC_TEB, RESULT_VECTOR, ISC_STATUS, ISC_STATUS_ARRAY, ISC_STATUS_PTR,
+    # ISC_EVENT_CALLBACK, ISC_ARRAY_DESC,
 
     blr_varying, blr_varying2, blr_text, blr_text2, blr_short, blr_long,
     blr_int64, blr_float, blr_d_float, blr_double, blr_timestamp, blr_sql_date,
@@ -151,7 +152,7 @@ from fdb.ibase import (frb_info_att_charset, isc_dpb_activate_shadow,
 
     SQLDA_version1, isc_segment,
 
-    isc_db_handle, isc_tr_handle, isc_stmt_handle, isc_blob_handle,
+    # isc_db_handle, isc_tr_handle, isc_stmt_handle, isc_blob_handle,
 
     fbclient_API
 
@@ -162,13 +163,13 @@ PYTHON_MAJOR_VER = sys.version_info[0]
 if PYTHON_MAJOR_VER != 3:
     from exceptions import NotImplementedError
 
-
 __version__ = '1.4.7'
 
 apilevel = '2.0'
 threadsafety = 1
 paramstyle = 'qmark'
 
+api = None
 def load_api(fb_library_name=None):
     """Initializes bindings to Firebird Client Library unless they are already initialized.
     Called automatically by :func:`fdb.connect` and :func:`fdb.create_database`.
@@ -178,9 +179,10 @@ def load_api(fb_library_name=None):
 
     :returns: :class:`fdb.ibase.fbclient_API` instance.
     """
-    if not hasattr(sys.modules[__name__],'api'):
-        setattr(sys.modules[__name__],'api',fbclient_API(fb_library_name))
-    return getattr(sys.modules[__name__],'api')
+    global api
+    if api is None:
+        api = fbclient_API(fb_library_name)
+    return api
 
 # Exceptions required by Python Database API
 
@@ -276,8 +278,8 @@ def DateFromTicks(ticks):
 def TimeFromTicks(ticks):
     return apply(Time, time.localtime(ticks)[3:6])
 
-def TimestampFromTicks(ticks):
-    return apply(Timestamp, time.localtime(ticks)[:6])
+# def TimestampFromTicks(ticks):
+#     return apply(Timestamp, time.localtime(ticks)[:6])
 
 def Binary(b):
     return b
@@ -351,6 +353,7 @@ _SIZE_OF_SHORT = ctypes.sizeof(ctypes.c_short)
 _tenTo = [10 ** x for x in range(20)]
 
 if PYTHON_MAJOR_VER != 3:
+    global x
     del x
 
 __xsqlda_cache = {}
@@ -380,33 +383,17 @@ _DATABASE_INFO_CODES_WITH_TIMESTAMP_RESULT = (isc_info_creation_date,)
 _DATABASE_INFO__KNOWN_LOW_LEVEL_EXCEPTIONS = (isc_info_user_names,)
 
 def xsqlda_factory(size):
-    if size in __xsqlda_cache:
-        cls = __xsqlda_cache[size]
-    else:
-        class XSQLDA(ctypes.Structure):
-            pass
-        XSQLDA._fields_ = [
-            ('version', ISC_SHORT),
-            ('sqldaid', ISC_SCHAR * 8),
-            ('sqldabc', ISC_LONG),
-            ('sqln', ISC_SHORT),
-            ('sqld', ISC_SHORT),
-            ('sqlvar', XSQLVAR * size),
-        ]
-        __xsqlda_cache[size] = XSQLDA
-        cls = XSQLDA
-    xsqlda = cls()
+    def XSQLDA_LENGTH(n):
+        return api.ffi.sizeof("XSQLDA") + (n - 1) * api.ffi.sizeof("XSQLDA")
+
+    buff = api.ffi.new("char[]", XSQLDA_LENGTH(size))
+    xsqlda = api.ffi.cast("XSQLDA *", buff)
     xsqlda.version = SQLDA_version1
     xsqlda.sqln = size
     return xsqlda
 
 def tebarray_factory(size):
-    if size in __tebarray_cache:
-        cls = __tebarray_cache[size]
-    else:
-        cls = ISC_TEB * size
-        __xsqlda_cache[size] = cls
-    teb_array = cls()
+    teb_array = api.ffi.new("ISC_TEB[]", size)
     return teb_array
 
 buf_pointer = ctypes.POINTER(ctypes.c_char)
@@ -415,7 +402,7 @@ def is_dead_proxy(obj):
     return isinstance(obj,weakref.ProxyType) and not dir(obj)
 
 def b2u(st, charset):
-    "Decode to unicode if charset is defined. For conversion of result set data."
+    """Decode to unicode if charset is defined. For conversion of result set data."""
     if charset:
         return st.decode(charset)
     else:
