@@ -4,14 +4,20 @@ It works on Python 2.6+ and Python 3.x.
 
 """
 import os
+import sys
 import shutil
+import platform
 from glob import glob
 from setuptools import setup, find_packages
 from fdb import __version__
-import setuptools.command.build_py
+#import setuptools.command.build_py
+from distutils.command.build import build
 import distutils.cmd
 import build_firebird
 
+# Monkey-patch Distribution so it always claims to be platform-specific.
+from distutils.core import Distribution
+Distribution.has_ext_modules = lambda *args, **kwargs: True
 
 classifiers = [
     'Development Status :: 5 - Production/Stable',
@@ -22,12 +28,12 @@ classifiers = [
 ]
 
 
-class BuildPyCommand(setuptools.command.build_py.build_py):
+class BuildCommand(build):
     """Custom build command."""
 
     def run(self):
         self.run_command('build_firebird')
-        setuptools.command.build_py.build_py.run(self)
+        build.run(self)
 
 class BuildFirebirdCommand(distutils.cmd.Command):
     """A custom command to build firebird embedded libraries."""
@@ -61,6 +67,7 @@ class BuildFirebirdCommand(distutils.cmd.Command):
         [shutil.copy(lib, libdir) for lib in package_data]
         self.distribution.package_data['fdb'] += [os.path.relpath(lib, os.path.join(".","fdb")) for lib in glob(os.path.join(libdir, '*'))]
 
+
 setup(name='fdb', 
         version=__version__,
         description = 'Firebird RDBMS bindings for Python.', 
@@ -75,7 +82,7 @@ setup(name='fdb',
     setup_requires=[],
     cmdclass={
         'build_firebird': BuildFirebirdCommand,
-        'build_py': BuildPyCommand,
+        'build': BuildCommand,
     },
     packages=find_packages(exclude=['ez_setup']),
     test_suite='nose.collector',
