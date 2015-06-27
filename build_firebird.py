@@ -1,6 +1,8 @@
+from __future__ import print_function
 import os
 import sys
 import platform
+import fileinput
 from glob import glob
 
 if platform.architecture()[0] == '32bit':
@@ -33,19 +35,47 @@ def build_win32(src_dir):
         call make_boot.bat &&\
         call make_all.bat
         """)
-        #TODO move compile embed files somewhere
         os.chdir(curdir)
     built_files = _built_files()
     return built_files
 
 
-def build_posix(src_dir):
+def build_osx(src_dir):
     # http://accountingplusplus.blogspot.com.au/2010/06/firebird-embedded-linux.html
-    raise NotImplementedError
+    def _built_files():
+        return [lib for lib in [os.path.join(src_dir,'gen','firebird','lib','libfbembed.dylib')] + \
+          glob(os.path.join(src_dir,'gen','firebird','lib','libicu*.dll')) if os.path.exists(lib)]
+
+    if not len(_built_files()) > 1:
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(os.path.join(src_dir))
+        os.system("""\
+        export LIBTOOLIZE=glibtoolize
+        export LIBTOOL=glibtool
+        ./autogen.sh
+        make gen
+        """)
+        for line in fileinput.input("./gen/make.platform", inplace=True):
+            line = line.\
+                replace("-fno-weak", "").\
+                replace("-mmacosx-version-min=10.6", "-mmacosx-version-min=10.7").\
+                replace("LINK_OPTS:=", "LINK_OPTS:= -mmacosx-version-min=10.7").\
+                replace("LD_FLAGS+=", "LD_FLAGS+= -mmacosx-version-min=10.7").\
+                rstrip('\n')
+            print(line)
+        os.system("""\
+        export LIBTOOLIZE=glibtoolize
+        export LIBTOOL=glibtool
+        make fbembed
+        """)
+
+        os.chdir(curdir)
+    built_files = _built_files()
+    return built_files
 
 
 def build(src_dir):
     if sys.platform == "win32":
         return build_win32(src_dir)
     elif sys.platform == "darwin":
-        return build_posix(src_dir)
+        return build_osx(src_dir)
