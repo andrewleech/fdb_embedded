@@ -1,6 +1,15 @@
+This is a fork of the Firebird FDB modules from svn://svn.code.sf.net/p/firebird/code/python/fdb/trunk
+It has been modified to bundle a copy of the fb embedded server libraries so it can be used stanalone without a
+separate installation of firebird database.
+
 FDB package is a set of Firebird RDBMS bindings for Python. It works on Python 2.6+ and Python 3.x.
 
 FDB is replacement for discontinued KInterbasDB library, and as such it's designed to be as much compatible 
 with KInterbasDB as possible, but there are some differences. See FDB docuentation for full description 
 of these differences.
 
+Building:
+git clone --recursive ssh://git@gitlab.alelec.net:6522/corona/fdb.git fdb
+cd fdb
+python setup.py bdist_wheel
+python -m pip install dist/fdb*.whl
