@@ -55,11 +55,6 @@ class BuildFirebirdCommand(distutils.cmd.Command):
 
     def run(self):
         """Run command."""
-        # data_files = build_firebird.build(self.firebird_source)
-        # if not self.distribution.data_files:
-        #     self.distribution.data_files = []
-        # self.distribution.data_files.append(('',data_files))
-
         package_data = build_firebird.build(self.firebird_source)
         libdir = os.path.join(".","fdb","lib")
         if not os.path.exists(libdir):
@@ -68,16 +63,17 @@ class BuildFirebirdCommand(distutils.cmd.Command):
         self.distribution.package_data['fdb'] += [os.path.relpath(lib, os.path.join(".","fdb")) for lib in glob(os.path.join(libdir, '*'))]
 
 
-setup(name='fdb', 
-        version=__version__,
-        description = 'Firebird RDBMS bindings for Python.', 
-        url='http://www.firebirdsql.org/en/python-devel-status/',
-        classifiers=classifiers,
-        keywords=['Firebird'],
-        license='BSD',
-        author='Pavel Cisar',
-        author_email='pcisar@users.sourceforge.net',
-        long_description=__doc__,
+setup(name='fdb_embedded',
+    version=__version__,
+    description = 'Firebird RDBMS bindings for Python with built in fb embedded server.',
+    url='http://www.firebirdsql.org/en/python-devel-status/',
+    classifiers=classifiers,
+    keywords=['Firebird'],
+    license='BSD',
+    author='Andrew Leech',
+    author_email='andrew@alelec.net',
+    url = "http://example.com/HelloWorld/",
+    long_description=__doc__,
     install_requires=[],
     setup_requires=[],
     cmdclass={
