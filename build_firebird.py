@@ -18,14 +18,6 @@ def build_win32(src_dir):
           glob(os.path.join(src_dir,'gen','Win32','icu*.dll')) if os.path.exists(lib)]
 
     if not len(_built_files()) > 1:
-        # vcvarsall = r'%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat'
-        # if not os.path.exists(os.path.expandvars(vcvarsall)):
-        #     vcvarsall = r'%COMMONPROGRAMFILES(X86)%\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat'
-        # if not os.path.exists(os.path.expandvars(vcvarsall)):
-        #     raise Exception('"Visual C++ for Python" not found')
-        # vcvars_cmd_x64 = r'call "%s" x64' %(vcvarsall)
-        # vcvars_cmd_x86 = vcvars_cmd_x64 + r' && call "%s" x86' %(vcvarsall) # run vcvars_cmd_x64 first to get vcbuild.exe
-        # vcvars_cmd = vcvars_cmd_x86 if PLATFORM == 'win32' else vcvars_cmd_x64
         curdir = os.path.abspath(os.curdir)
         os.chdir(os.path.join(src_dir,'builds','win32'))
         os.system("""\
@@ -41,7 +33,6 @@ def build_win32(src_dir):
 
 
 def build_osx(src_dir):
-    # http://accountingplusplus.blogspot.com.au/2010/06/firebird-embedded-linux.html
     def _built_files():
         return [lib for lib in [os.path.join(src_dir,'gen','firebird','lib','libfbembed.dylib')] + \
           glob(os.path.join(src_dir,'gen','firebird','lib','libicu*.dylib')) if os.path.exists(lib)]
@@ -92,10 +83,36 @@ def build_osx(src_dir):
     return built_files
 
 
+def build_linux(src_dir):
+    def _built_files():
+        return glob(os.path.join(src_dir,'gen','firebird','lib','libfbembed.so*')) + \
+               glob(os.path.join(src_dir,'gen','firebird','lib','libicu*.so*'))
+
+    if not len(_built_files()) > 1:
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(os.path.join(src_dir))
+        os.system("""\
+        ./autogen.sh
+        make gen
+        """)
+        with open("./gen/make.platform", "a") as make_platform:
+            make_platform.write("\nLDFLAGS+=-Wl,-rpath,'$$ORIGIN'")
+        os.system("""\
+        make
+        make libfbembed
+        """)
+
+        os.chdir(curdir)
+    built_files = _built_files()
+    return built_files
+
+
 def build(src_dir):
     if sys.platform == "win32":
         return build_win32(src_dir)
     elif sys.platform == "darwin":
         return build_osx(src_dir)
+    elif sys.platform.startswith("linux"):
+        return build_linux(src_dir)
     else:
         raise NotImplementedError
