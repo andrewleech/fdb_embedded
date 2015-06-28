@@ -66,7 +66,15 @@ def build_osx(src_dir):
         os.system("""\
         export LIBTOOLIZE=glibtoolize
         export LIBTOOL=glibtool
-        make fbembed
+        #make gpre_boot
+        #make btyacc_binary
+        #make extlib
+        #make external_libraries
+        #make libfbstatic
+        #make intl
+        #make gpre_static
+        make
+        make libfbembed
         export LIBLOC=./gen/firebird/lib/
         export OLDPATH=/Library/Frameworks/Firebird.framework/Versions/A/Libraries
 
