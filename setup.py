@@ -9,7 +9,7 @@ import shutil
 import platform
 from glob import glob
 from setuptools import setup, find_packages
-from fdb import __version__
+from fdb_embedded import __version__
 #import setuptools.command.build_py
 from distutils.command.build import build
 import distutils.cmd
