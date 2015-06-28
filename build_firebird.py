@@ -44,7 +44,7 @@ def build_osx(src_dir):
     # http://accountingplusplus.blogspot.com.au/2010/06/firebird-embedded-linux.html
     def _built_files():
         return [lib for lib in [os.path.join(src_dir,'gen','firebird','lib','libfbembed.dylib')] + \
-          glob(os.path.join(src_dir,'gen','firebird','lib','libicu*.dll')) if os.path.exists(lib)]
+          glob(os.path.join(src_dir,'gen','firebird','lib','libicu*.dylib')) if os.path.exists(lib)]
 
     if not len(_built_files()) > 1:
         curdir = os.path.abspath(os.curdir)
@@ -67,6 +67,16 @@ def build_osx(src_dir):
         export LIBTOOLIZE=glibtoolize
         export LIBTOOL=glibtool
         make fbembed
+        export LIBLOC=./gen/firebird/lib/
+        export OLDPATH=/Library/Frameworks/Firebird.framework/Versions/A/Libraries
+
+        install_name_tool -change $OLDPATH @loader_path $LIBLOC/libfbembed.dylib
+        install_name_tool -change $OLDPATH/libicuuc.dylib @loader_path/libicuuc.dylib $LIBLOC/libfbembed.dylib
+        install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib $LIBLOC/libfbembed.dylib
+        install_name_tool -change $OLDPATH/libicui18n.dylib @loader_path/libicui18n.dylib $LIBLOC/libfbembed.dylib
+        install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib $LIBLOC/libicuuc.dylib
+        install_name_tool -change $OLDPATH/libicuuc.dylib @loader_path/libicuuc.dylib $LIBLOC/libicui18n.dylib
+        install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib $LIBLOC/libicui18n.dylib
         """)
 
         os.chdir(curdir)
@@ -79,3 +89,5 @@ def build(src_dir):
         return build_win32(src_dir)
     elif sys.platform == "darwin":
         return build_osx(src_dir)
+    else:
+        raise NotImplementedError

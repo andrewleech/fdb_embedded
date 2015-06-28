@@ -33,6 +33,11 @@ import os
 libpath = os.path.join(os.path.dirname(__file__), 'lib') + os.pathsep
 if libpath not in os.environ['PATH']:
     os.environ['PATH'] = libpath + os.environ['PATH']
+if sys.platform == 'darwin':
+    current = os.environ.get('DYLD_LIBRARY_PATH', "")
+    if libpath not in current:
+        os.environ['DYLD_LIBRARY_PATH'] = libpath + current
+
 
 PYTHON_MAJOR_VER = sys.version_info[0]
 
@@ -1160,7 +1165,10 @@ class fbclient_API(object):
 
         if fb_library_name is None:
             if sys.platform == 'darwin':
-                fb_library_name = find_library('Firebird')
+                fb_library_name = find_library('fbembed')
+                if not fb_library_name:
+                    fb_library_name = find_library('Firebird')
+
             # Next elif is necessary hotfix for ctypes issue
             # http://bugs.python.org/issue16283
             elif sys.platform == 'win32':
@@ -1180,7 +1188,9 @@ class fbclient_API(object):
                         instFold = winreg.QueryValueEx(key,'DefaultInstance')
                         fb_library_name = os.path.join(os.path.join(instFold[0], 'bin'), 'fbclient.dll')
             else:
-                fb_library_name = find_library('fbclient')
+                fb_library_name = find_library('fbembed')
+                if not fb_library_name:
+                    fb_library_name = find_library('fbclient')
 
             if not fb_library_name:
                 raise Exception("The location of Firebird Client Library could not be determined.")
