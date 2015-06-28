@@ -56,23 +56,22 @@ class BuildFirebirdCommand(distutils.cmd.Command):
     def run(self):
         """Run command."""
         package_data = build_firebird.build(self.firebird_source)
-        libdir = os.path.join(".","fdb","lib")
+        libdir = os.path.join(".","fdb_embedded","lib")
         if not os.path.exists(libdir):
             os.makedirs(libdir)
         [shutil.copy(lib, libdir) for lib in package_data]
-        self.distribution.package_data['fdb'] += [os.path.relpath(lib, os.path.join(".","fdb")) for lib in glob(os.path.join(libdir, '*'))]
+        self.distribution.package_data['fdb_embedded'] += [os.path.relpath(lib, os.path.join(".","fdb_embedded")) for lib in glob(os.path.join(libdir, '*'))]
 
 
 setup(name='fdb_embedded',
     version=__version__,
     description = 'Firebird RDBMS bindings for Python with built in fb embedded server.',
-    url='http://www.firebirdsql.org/en/python-devel-status/',
+    url = "https://github.com/andrewleech/fdb_embedded",
     classifiers=classifiers,
     keywords=['Firebird'],
     license='BSD',
     author='Andrew Leech',
     author_email='andrew@alelec.net',
-    url = "http://example.com/HelloWorld/",
     long_description=__doc__,
     install_requires=[],
     setup_requires=[],
@@ -83,9 +82,9 @@ setup(name='fdb_embedded',
     packages=find_packages(exclude=['ez_setup']),
     test_suite='nose.collector',
     include_package_data=False,
-    package_data={'fdb': ['*.txt'],
+    package_data={'fdb_embedded': ['*.txt'],
                   'test':'fbtest.fdb'},
-    #message_extractors={'fdb': [
+    #message_extractors={'fdb_embedded': [
             #('**.py', 'python', None),
             #('public/**', 'ignore', None)]},
     zip_safe=False,

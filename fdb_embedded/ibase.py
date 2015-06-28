@@ -30,14 +30,21 @@ import operator
 import platform
 import os
 
-libpath = os.path.join(os.path.dirname(__file__), 'lib') + os.pathsep
-if libpath not in os.environ['PATH']:
-    os.environ['PATH'] = libpath + os.environ['PATH']
-if sys.platform == 'darwin':
-    current = os.environ.get('DYLD_LIBRARY_PATH', "")
-    if libpath not in current:
-        os.environ['DYLD_LIBRARY_PATH'] = libpath + current
+# Add lib folder to search path
+libpath = os.path.join(os.path.dirname(__file__), 'lib')
 
+if sys.platform == 'darwin':
+    env_var = 'DYLD_LIBRARY_PATH'
+elif sys.platform == 'win32':
+    env_var = 'PATH'
+elif sys.platform.startswith('linux'):
+    env_var = 'LD_LIBRARY_PATH'
+else:
+    raise NotImplementedError
+
+current = os.environ.get(env_var, "")
+if libpath not in current:
+    os.environ[env_var] = libpath + os.pathsep + current
 
 PYTHON_MAJOR_VER = sys.version_info[0]
 
@@ -276,7 +283,7 @@ blr_column_name = 21
 blr_column_name2 = 22
 blr_domain_type_of = 0
 blr_domain_full = 1
-# Rest of BLR is defined in fdb.blr
+# Rest of BLR is defined in fdb_embedded.blr
 
 # Database parameter block stuff
 
@@ -1165,32 +1172,38 @@ class fbclient_API(object):
 
         if fb_library_name is None:
             if sys.platform == 'darwin':
-                fb_library_name = find_library('fbembed')
-                if not fb_library_name:
-                    fb_library_name = find_library('Firebird')
+                fb_library_name = os.path.join(libpath, 'libfbembed.dylib')
+                if not os.path.exists(fb_library_name):
+                    fb_library_name = find_library('fbembed')
+                    if not fb_library_name:
+                        fb_library_name = find_library('Firebird')
 
             # Next elif is necessary hotfix for ctypes issue
             # http://bugs.python.org/issue16283
             elif sys.platform == 'win32':
-                fb_library_name = find_library('fbembed.dll')
-                if not fb_library_name:
-                    fb_library_name = find_library('fbclient.dll')
+                fb_library_name = os.path.join(libpath, 'fbembed.dll')
+                if not os.path.exists(fb_library_name):
+                    fb_library_name = find_library('fbembed.dll')
                     if not fb_library_name:
-                        # let's try windows registry
-                        if PYTHON_MAJOR_VER == 3:
-                            import winreg
-                        else:
-                            import _winreg as winreg
+                        fb_library_name = find_library('fbclient.dll')
+                        if not fb_library_name:
+                            # let's try windows registry
+                            if PYTHON_MAJOR_VER == 3:
+                                import winreg
+                            else:
+                                import _winreg as winreg
 
-                        # try find via installed Firebird server
-                        baseKey = 'SOFTWARE\Firebird Project\Firebird Server\Instances'
-                        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, baseKey)
-                        instFold = winreg.QueryValueEx(key,'DefaultInstance')
-                        fb_library_name = os.path.join(os.path.join(instFold[0], 'bin'), 'fbclient.dll')
+                            # try find via installed Firebird server
+                            baseKey = 'SOFTWARE\Firebird Project\Firebird Server\Instances'
+                            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, baseKey)
+                            instFold = winreg.QueryValueEx(key,'DefaultInstance')
+                            fb_library_name = os.path.join(os.path.join(instFold[0], 'bin'), 'fbclient.dll')
             else:
-                fb_library_name = find_library('fbembed')
-                if not fb_library_name:
-                    fb_library_name = find_library('fbclient')
+                fb_library_name = os.path.join(libpath, 'libfbembed.so')
+                if not os.path.exists(fb_library_name):
+                    fb_library_name = find_library('fbembed')
+                    if not fb_library_name:
+                        fb_library_name = find_library('fbclient')
 
             if not fb_library_name:
                 raise Exception("The location of Firebird Client Library could not be determined.")

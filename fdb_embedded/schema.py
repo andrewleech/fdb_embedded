@@ -1,6 +1,6 @@
 #coding:utf-8
 #
-#   PROGRAM:     fdb
+#   PROGRAM:     fdb_embedded
 #   MODULE:      schema.py
 #   DESCRIPTION: Database schema
 #   CREATED:     10.5.2013
@@ -20,9 +20,9 @@
 
 import sys
 import os
-import fdb
-#from . import fbcore as fdb
-from fdb.utils import LateBindingProperty
+import fdb_embedded
+#from . import fbcore as fdb_embedded
+from fdb_embedded.utils import LateBindingProperty
 import string
 import weakref
 from itertools import groupby
@@ -281,7 +281,7 @@ class Schema(object):
         return self._con is None
     def __fail_if_closed(self):
         if self.closed:
-            raise fdb.ProgrammingError("Schema is not binded to connection.")
+            raise fdb_embedded.ProgrammingError("Schema is not binded to connection.")
     def _close(self):
         self._ic.close()
         self._con = None
@@ -306,7 +306,7 @@ class Schema(object):
                             'constraints','collations','character sets',
                             'exceptions','roles','functions','files','shadows',
                             'privileges','users']:
-                raise fdb.ProgrammingError("Unknown metadata category '%s'" % data)
+                raise fdb_embedded.ProgrammingError("Unknown metadata category '%s'" % data)
         if (not data or data == 'tables'):
             self.__tables = None
         if (not data or data == 'views'):
@@ -377,7 +377,7 @@ order by r.RDB$DIMENSION""" % field.name)]
         elif itype == 8: # User
             result = self.__object_by_name(self._get_users(),name)
             if not result:
-                result = fdb.services.User(name)
+                result = fdb_embedded.services.User(name)
                 self.__users.append(result)
             return result
         elif itype == 9: # Field
@@ -393,7 +393,7 @@ order by r.RDB$DIMENSION""" % field.name)]
         elif itype == 17: # Collation
             return self.get_collation(name)
         else:
-            raise fdb.ProgrammingError('Unsupported subject type')
+            raise fdb_embedded.ProgrammingError('Unsupported subject type')
 
     #--- special attribute access methods
 
@@ -510,7 +510,7 @@ RDB$TRIGGER_INACTIVE, RDB$SYSTEM_FLAG, RDB$FLAGS from RDB$TRIGGERS""")
             cols = ['RDB$PROCEDURE_NAME', 'RDB$PROCEDURE_ID', 'RDB$PROCEDURE_INPUTS', 
                     'RDB$PROCEDURE_OUTPUTS', 'RDB$DESCRIPTION', 'RDB$PROCEDURE_SOURCE', 
                     'RDB$SECURITY_CLASS', 'RDB$OWNER_NAME', 'RDB$SYSTEM_FLAG']
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 cols.extend(['RDB$PROCEDURE_TYPE','RDB$VALID_BLR'])
             self._ic.execute("select %s from rdb$procedures" % ','.join(cols))
             self.__procedures = [Procedure(self,row) for row in self._ic.itermap()]
@@ -597,12 +597,12 @@ FROM RDB$USER_PRIVILEGES""")
         if self.__users is None:
             self.__fail_if_closed()
             self._ic.execute("select distinct(RDB$USER) FROM RDB$USER_PRIVILEGES")
-            self.__users = [fdb.services.User(row[0].strip()) for row in self._ic]
+            self.__users = [fdb_embedded.services.User(row[0].strip()) for row in self._ic]
         return self.__users
 
     #--- Properties
 
-    #: True if link to :class:`~fdb.Connection` is closed.
+    #: True if link to :class:`~fdb_embedded.Connection` is closed.
     closed = property(__get_closed)
     description = LateBindingProperty(_get_description,None,None,
         "Database description or None if it doesn't have a description.")
@@ -670,15 +670,15 @@ FROM RDB$USER_PRIVILEGES""")
     #--- Public
 
     def bind(self, connection):
-        """Bind this instance to specified :class:`~fdb.Connection`.
+        """Bind this instance to specified :class:`~fdb_embedded.Connection`.
         
-        :param connection: :class:`~fdb.Connection` instance. 
+        :param connection: :class:`~fdb_embedded.Connection` instance.
         
         :raises ProgrammingError: If Schema object was set as internal (via 
             :meth:`_set_as_internal`).
         """
         if self.__internal:
-            raise fdb.ProgrammingError("Call to 'bind' not allowed for embedded Schema.")
+            raise fdb_embedded.ProgrammingError("Call to 'bind' not allowed for embedded Schema.")
         if self._con:
             self.close()
         self._con = connection
@@ -730,13 +730,13 @@ FROM RDB$USER_PRIVILEGES""")
         self.enum_trigger_types = enum_dict('RDB$TRIGGER_TYPE')
         
     def close(self):
-        """Sever link to :class:`~fdb.Connection`.
+        """Sever link to :class:`~fdb_embedded.Connection`.
         
         :raises ProgrammingError: If Schema object was set as internal (via 
             :meth:`_set_as_internal`).
         """
         if self.__internal:
-            raise fdb.ProgrammingError("Call to 'close' not allowed for embedded Schema.")
+            raise fdb_embedded.ProgrammingError("Call to 'close' not allowed for embedded Schema.")
         self._close()
         self.__clear()
     def accept_visitor(self,visitor):
@@ -925,7 +925,7 @@ FROM RDB$USER_PRIVILEGES""")
         """Get list of all privileges granted to user/database object. 
         
         :param user: User name or instance of class that represents possible user.
-            Allowed classes are :class:`~fdb.services.User`, :class:`Table`, 
+            Allowed classes are :class:`~fdb_embedded.services.User`, :class:`Table`,
             :class:`View`, :class:`Procedure`, :class:`Trigger` or :class:`Role`.
         :param int user_type: **Required if** `user` is provided as string name.
             Numeric code for user type, see :attr:`Schema.enum_object_types`.
@@ -933,16 +933,16 @@ FROM RDB$USER_PRIVILEGES""")
         
         :raises ProgrammingError: For unknown `user_type` code.
         """
-        if isinstance(user,(fdb.StringType,fdb.UnicodeType)):
+        if isinstance(user,(fdb_embedded.StringType,fdb_embedded.UnicodeType)):
             if (user_type is None) or (user_type not in self.enum_object_types):
-                raise fdb.ProgrammingError("Unknown user_type code.")
+                raise fdb_embedded.ProgrammingError("Unknown user_type code.")
             else:
                 uname = user
                 utype = [user_type]
         elif isinstance(user,(Table,View,Procedure,Trigger,Role)):
             uname = user.name
             utype = user._type_code 
-        elif isinstance(user,fdb.services.User):
+        elif isinstance(user,fdb_embedded.services.User):
             uname = user.name
             utype = [8]
         return [p for p in self.privileges
@@ -968,7 +968,7 @@ class BaseSchemaItem(object):
         p = set(params.keys())
         n = set(param_names)
         if not p.issubset(n):
-            raise fdb.ProgrammingError("Unsupported parameter(s) '%s'" % 
+            raise fdb_embedded.ProgrammingError("Unsupported parameter(s) '%s'" %
                                        ','.join(p.difference(n)))
     def _needs_quoting(self,ident):
         if not ident:
@@ -1043,7 +1043,7 @@ class BaseSchemaItem(object):
             _call = getattr(self,'_get_%s_sql' % _action)
             return _call(**params)
         else:
-            raise fdb.ProgrammingError("Unsupported action '%s'" % action)
+            raise fdb_embedded.ProgrammingError("Unsupported action '%s'" % action)
 
 class Collation(BaseSchemaItem):
     """Represents collation.
@@ -1161,7 +1161,7 @@ class CharacterSet(BaseSchemaItem):
             return ('ALTER CHARACTER SET %s SET DEFAULT COLLATION %s' % (self.name,
                     collation.name if isinstance(collation,Collation) else collation))
         else:
-            raise fdb.ProgrammingError("Missing required parameter: 'collation'.")
+            raise fdb_embedded.ProgrammingError("Missing required parameter: 'collation'.")
     def _get_name(self):
         return self._attributes['RDB$CHARACTER_SET_NAME']
     def _get_id(self):
@@ -1240,7 +1240,7 @@ class DatabaseException(BaseSchemaItem):
             return "ALTER EXCEPTION %s '%s'" % (self.get_quoted_name(),
                                                  escape_single_quotes(message))
         else:
-            raise fdb.ProgrammingError("Missing required parameter: 'message'.")
+            raise fdb_embedded.ProgrammingError("Missing required parameter: 'message'.")
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
         return 'DROP EXCEPTION %s' % self.get_quoted_name()
@@ -1294,7 +1294,7 @@ class Sequence(BaseSchemaItem):
         if value is not None:
             return "ALTER SEQUENCE %s RESTART WITH %d" % (self.get_quoted_name(),value)
         else:
-            raise fdb.ProgrammingError("Missing required parameter: 'value'.")
+            raise fdb_embedded.ProgrammingError("Missing required parameter: 'value'.")
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
         return 'DROP SEQUENCE %s' % self.get_quoted_name()
@@ -1350,10 +1350,10 @@ class TableColumn(BaseSchemaItem):
         new_name = params.get('name')
         new_position = params.get('position')
         if new_expr and not self.iscomputed():
-            raise fdb.ProgrammingError("Change from persistent column to computed"
+            raise fdb_embedded.ProgrammingError("Change from persistent column to computed"
                                        " is not allowed.")
         elif self.iscomputed() and (new_type and not new_expr):
-            raise fdb.ProgrammingError("Change from computed column to persistent"
+            raise fdb_embedded.ProgrammingError("Change from computed column to persistent"
                                        " is not allowed.")
         sql = 'ALTER TABLE %s ALTER COLUMN %s' % (self.table.get_quoted_name(),
                                                   self.get_quoted_name())
@@ -1369,7 +1369,7 @@ class TableColumn(BaseSchemaItem):
                 result += ' COMPUTED BY %s' % new_expr
             return result
         else:
-            raise fdb.ProgrammingError("Parameter required.")
+            raise fdb_embedded.ProgrammingError("Parameter required.")
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
         return 'ALTER TABLE %s DROP %s' % (self.table.get_quoted_name(),
@@ -1531,7 +1531,7 @@ from rdb$index_segments where rdb$index_name = ? order by rdb$field_position""",
     def _get_segment_statistics(self):
         if self.__segment_statistics is None:
             if self._attributes['RDB$SEGMENT_COUNT'] > 0:
-                if self.schema._con.ods >= fdb.ODS_FB_21:
+                if self.schema._con.ods >= fdb_embedded.ODS_FB_21:
                     self.__segment_statistics = [r['RDB$STATISTICS'] for r
                                             in self.schema._select("""select RDB$STATISTICS 
 from rdb$index_segments where rdb$index_name = ? order by rdb$field_position""",(self.name,))]
@@ -1629,7 +1629,7 @@ class ViewColumn(BaseSchemaItem):
             relation = self.schema.get_procedure(brel)
             if relation:
                 return relation.get_outparam(bfield)
-            raise fdb.OperationalError("Can't locate base relation.")
+            raise fdb_embedded.OperationalError("Can't locate base relation.")
         return None
     def _get_view(self):
         return self.__view
@@ -1734,7 +1734,7 @@ class Domain(BaseSchemaItem):
         new_type = params.get('datatype')
         sql = 'ALTER DOMAIN %s' % self.get_quoted_name()
         if len(params) > 1:
-            raise fdb.ProgrammingError("Only one parameter allowed.")
+            raise fdb_embedded.ProgrammingError("Only one parameter allowed.")
         if new_name:
             return '%s TO %s' % (sql,self._get_quoted_ident(new_name))
         elif new_default != '':
@@ -1746,7 +1746,7 @@ class Domain(BaseSchemaItem):
         elif new_type:
             return '%s TYPE %s' % (sql,new_type)
         else:
-            raise fdb.ProgrammingError("Parameter required.")
+            raise fdb_embedded.ProgrammingError("Parameter required.")
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
         return 'DROP DOMAIN %s' % self.get_quoted_name()
@@ -2097,7 +2097,7 @@ class Constraint(BaseSchemaItem):
             if not i.issystemobject():
                 const_def += '\n  USING %s INDEX %s' % (i.index_type,i.get_quoted_name())
         else:
-            raise fdb.OperationalError("Unrecognized constraint type '%s'" % self.constraint_type)
+            raise fdb_embedded.OperationalError("Unrecognized constraint type '%s'" % self.constraint_type)
         return const_def
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
@@ -2430,7 +2430,7 @@ class View(BaseSchemaItem):
                     '(%s)' % columns if columns else '',
                     '%s\n     WITH CHECK OPTION' % query if check else query)
         else:
-            raise fdb.ProgrammingError("Missing required parameter: 'query'.")
+            raise fdb_embedded.ProgrammingError("Missing required parameter: 'query'.")
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
         return 'DROP VIEW %s' % self.get_quoted_name()
@@ -2563,7 +2563,7 @@ class Trigger(BaseSchemaItem):
             dbaction = action.upper().startswith('ON ')
             if ((dbaction and not self.isdbtrigger()) 
                 or (not dbaction and self.isdbtrigger())):
-                raise fdb.ProgrammingError("Trigger type change is not allowed.")
+                raise fdb_embedded.ProgrammingError("Trigger type change is not allowed.")
             header += '\n  %s' % action
         if sequence is not None:
             header += '\n  POSITION %d' % sequence
@@ -2588,7 +2588,7 @@ class Trigger(BaseSchemaItem):
             body = ''
         #
         if not (header or body):
-            raise fdb.ProgrammingError("Header or body definition required.")
+            raise fdb_embedded.ProgrammingError("Header or body definition required.")
         return 'ALTER TRIGGER %s%s%s' % (self.get_quoted_name(),header,body)
     def _get_drop_sql(self,**params):
         self._check_params(params,[])
@@ -2722,7 +2722,7 @@ class ProcedureParameter(BaseSchemaItem):
             else:
                 return PROCPAR_TYPE_OF_COLUMN
         else:
-            raise fdb.InternalError("Unknown parameter mechanism code: %d" % m)
+            raise fdb_embedded.InternalError("Unknown parameter mechanism code: %d" % m)
     def _get_default(self):
         result = self._attributes.get('RDB$DEFAULT_SOURCE')
         if result:
@@ -2862,7 +2862,7 @@ class Procedure(BaseSchemaItem):
         declare = params.get('declare')
         code = params.get('code')
         if code is None:
-            raise fdb.ProgrammingError("Missing required parameter: 'code'.")
+            raise fdb_embedded.ProgrammingError("Missing required parameter: 'code'.")
         #
         header = ''
         if inpars is not None:
@@ -2924,10 +2924,10 @@ class Procedure(BaseSchemaItem):
         cols = ['RDB$PARAMETER_NAME','RDB$PROCEDURE_NAME','RDB$PARAMETER_NUMBER',
                 'RDB$PARAMETER_TYPE','RDB$FIELD_SOURCE','RDB$DESCRIPTION', 
                 'RDB$SYSTEM_FLAG']
-        if self.__ods >= fdb.ODS_FB_21:
+        if self.__ods >= fdb_embedded.ODS_FB_21:
             cols.extend(['RDB$DEFAULT_SOURCE','RDB$COLLATION_ID','RDB$NULL_FLAG',
                          'RDB$PARAMETER_MECHANISM'])
-        if self.__ods >= fdb.ODS_FB_25:
+        if self.__ods >= fdb_embedded.ODS_FB_25:
             cols.extend(['RDB$FIELD_NAME','RDB$RELATION_NAME'])
         return ','.join(cols)
     def _get_name(self):
@@ -2988,7 +2988,7 @@ order by rdb$parameter_number""" % self.__param_columns(),(self.name,))]
         "List of :class:`Privilege` objects granted to this object.")
     # FB 2.1
     proc_type = LateBindingProperty(_get_proc_type,None,None,
-        "Procedure type code. See :attr:`fdb.Connection.enum_procedure_types`.")
+        "Procedure type code. See :attr:`fdb_embedded.Connection.enum_procedure_types`.")
     valid_blr = LateBindingProperty(_get_valid_blr,None,None,
         "Procedure BLR invalidation flag. Coul be True/False or None.")
     
@@ -3465,7 +3465,7 @@ class Privilege(BaseSchemaItem):
         grantors = params.get('grantors')
         option_only = params.get('grant_option',False)
         if option_only and not self.has_grant():
-            raise fdb.ProgrammingError("Can't revoke grant option that wasn't granted.")
+            raise fdb_embedded.ProgrammingError("Can't revoke grant option that wasn't granted.")
         privileges = {'S':'SELECT','I':'INSERT','U':'UPDATE','D':'DELETE','R':'REFERENCES'}
         admin_option = 'GRANT OPTION FOR ' if self.has_grant() and option_only else ''
         if self.privilege in privileges:
@@ -3498,7 +3498,7 @@ class Privilege(BaseSchemaItem):
         return self.schema._get_item(self._attributes['RDB$USER'],
                                      self._attributes['RDB$USER_TYPE'])
     def _get_grantor(self):
-        return fdb.services.User(self._attributes['RDB$GRANTOR'])
+        return fdb_embedded.services.User(self._attributes['RDB$GRANTOR'])
     def _get_privilege(self):
         return self._attributes['RDB$PRIVILEGE']
     def _get_subject(self):
@@ -3524,10 +3524,10 @@ class Privilege(BaseSchemaItem):
     #--- Properties
 
     user = LateBindingProperty(_get_user,None,None,
-        "Grantee. Either :class:`~fdb.services.User`, :class:`Role`, " \
+        "Grantee. Either :class:`~fdb_embedded.services.User`, :class:`Role`, " \
         ":class:`Procedure`, :class:`Trigger` or :class:`View` object.")
     grantor = LateBindingProperty(_get_grantor,None,None,
-        "Grantor :class:`~fdb.services.User` object.")
+        "Grantor :class:`~fdb_embedded.services.User` object.")
     privilege = LateBindingProperty(_get_privilege,None,None,"Privilege code.")
     subject = LateBindingProperty(_get_subject,None,None,
         "Priviledge subject. Either :class:`Role`, :class:`Table`, :class:`View` " \

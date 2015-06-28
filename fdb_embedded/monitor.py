@@ -1,6 +1,6 @@
 #coding:utf-8
 #
-#   PROGRAM:     fdb
+#   PROGRAM:     fdb_embedded
 #   MODULE:      monitor.py
 #   DESCRIPTION: Database monitoring
 #   CREATED:     10.5.2013
@@ -20,8 +20,8 @@
 
 import sys
 import os
-import fdb
-from fdb.utils import LateBindingProperty
+import fdb_embedded
+from fdb_embedded.utils import LateBindingProperty
 import weakref
 
 # Current shutdown mode
@@ -74,7 +74,7 @@ class Monitor(object):
         return self._con is None
     def __fail_if_closed(self):
         if self.closed:
-            raise fdb.ProgrammingError("Monitor is not binded to connection.")
+            raise fdb_embedded.ProgrammingError("Monitor is not binded to connection.")
     def _close(self):
         self._ic.close()
         self._con = None
@@ -90,7 +90,7 @@ class Monitor(object):
     def _get_database(self):
         if self.__database is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 self._ic.execute("select * from mon$database")
                 self.__database = DatabaseInfo(self,self._ic.fetchonemap())
             else:
@@ -99,18 +99,18 @@ class Monitor(object):
     def _get_attachments(self):
         if self.__attachments is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 self._ic.execute("select * from mon$attachments")
                 self.__attachments = [AttachmentInfo(self,row) for row in self._ic.itermap()]
             else:
                 self.__attachments = []
         return self.__attachments
     def _get_this_attachment(self):
-        return self.get_attachment(self._con.db_info(fdb.isc_info_attachment_id))
+        return self.get_attachment(self._con.db_info(fdb_embedded.isc_info_attachment_id))
     def _get_transactions(self):
         if self.__transactions is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 self._ic.execute("select * from mon$transactions")
                 self.__transactions = [TransactionInfo(self,row) for row in self._ic.itermap()]
             else:
@@ -119,7 +119,7 @@ class Monitor(object):
     def _get_statements(self):
         if self.__statements is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 self._ic.execute("select * from mon$statements")
                 self.__statements = [StatementInfo(self,row) for row in self._ic.itermap()]
             else:
@@ -128,7 +128,7 @@ class Monitor(object):
     def _get_callstack(self):
         if self.__callstack is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 self._ic.execute("select * from mon$call_stack")
                 self.__callstack = [CallStackInfo(self,row) for row in self._ic.itermap()]
             else:
@@ -137,7 +137,7 @@ class Monitor(object):
     def _get_iostats(self):
         if self.__iostats is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_25:
+            if self._con.ods >= fdb_embedded.ODS_FB_25:
                 self._ic.execute("""SELECT r.MON$STAT_ID, r.MON$STAT_GROUP, 
 r.MON$RECORD_SEQ_READS, r.MON$RECORD_IDX_READS, r.MON$RECORD_INSERTS, 
 r.MON$RECORD_UPDATES, r.MON$RECORD_DELETES, r.MON$RECORD_BACKOUTS, 
@@ -148,7 +148,7 @@ FROM MON$RECORD_STATS r join MON$IO_STATS io
   on r.MON$STAT_ID = io.MON$STAT_ID and r.MON$STAT_GROUP = io.MON$STAT_GROUP
   join MON$MEMORY_USAGE m
   on r.MON$STAT_ID = m.MON$STAT_ID and r.MON$STAT_GROUP = m.MON$STAT_GROUP""")
-            elif self._con.ods >= fdb.ODS_FB_21:
+            elif self._con.ods >= fdb_embedded.ODS_FB_21:
                 self._ic.execute("""SELECT r.MON$STAT_ID, r.MON$STAT_GROUP, 
 r.MON$RECORD_SEQ_READS, r.MON$RECORD_IDX_READS, r.MON$RECORD_INSERTS, 
 r.MON$RECORD_UPDATES, r.MON$RECORD_DELETES, r.MON$RECORD_BACKOUTS, 
@@ -156,7 +156,7 @@ r.MON$RECORD_PURGES, r.MON$RECORD_EXPUNGES, io.MON$PAGE_FETCHES,
 io.MON$PAGE_MARKS, io.MON$PAGE_READS, io.MON$PAGE_WRITES
 FROM MON$RECORD_STATS r join MON$IO_STATS io
 on r.MON$STAT_ID = io.MON$STAT_ID and r.MON$STAT_GROUP = io.MON$STAT_GROUP""")
-            if self._con.ods >= fdb.ODS_FB_21:
+            if self._con.ods >= fdb_embedded.ODS_FB_21:
                 self.__iostats = [IOStatsInfo(self,row) for row in self._ic.itermap()]
             else:
                 self.__iostats = []
@@ -164,7 +164,7 @@ on r.MON$STAT_ID = io.MON$STAT_ID and r.MON$STAT_GROUP = io.MON$STAT_GROUP""")
     def _get_variables(self):
         if self.__variables is None:
             self.__fail_if_closed()
-            if self._con.ods >= fdb.ODS_FB_25:
+            if self._con.ods >= fdb_embedded.ODS_FB_25:
                 self._ic.execute("select * from mon$context_variables")
                 self.__variables = [ContextVariableInfo(self,row) for row in self._ic.itermap()]
             else:
@@ -173,7 +173,7 @@ on r.MON$STAT_ID = io.MON$STAT_ID and r.MON$STAT_GROUP = io.MON$STAT_GROUP""")
 
     #--- Properties
 
-    #: True if link to :class:`~fdb.Connection` is closed.
+    #: True if link to :class:`~fdb_embedded.Connection` is closed.
     closed = property(__get_closed)
     db = LateBindingProperty(_get_database,None,None,
         ":class:`DatabaseInfo` object for attached database.")
@@ -195,31 +195,31 @@ on r.MON$STAT_ID = io.MON$STAT_ID and r.MON$STAT_GROUP = io.MON$STAT_GROUP""")
     #--- Public
 
     def bind(self, connection):
-        """Bind this instance to specified :class:`~fdb.Connection`.
+        """Bind this instance to specified :class:`~fdb_embedded.Connection`.
         
-        :param connection: :class:`~fdb.Connection` instance. 
+        :param connection: :class:`~fdb_embedded.Connection` instance.
         
         :raises ProgrammingError: If Monitor object was set as internal (via 
             :meth:`_set_as_internal`) or database has ODS lower than 11.1.
         """
         if self.__internal:
-            raise fdb.ProgrammingError("Call to 'bind' not allowed for embedded Monitor.")
+            raise fdb_embedded.ProgrammingError("Call to 'bind' not allowed for embedded Monitor.")
         if self._con:
             self.close()
-        if connection.ods < fdb.ODS_FB_21:
-            raise fdb.ProgrammingError("Monitoring tables are available only " \
+        if connection.ods < fdb_embedded.ODS_FB_21:
+            raise fdb_embedded.ProgrammingError("Monitoring tables are available only " \
                                        "for databases with ODS 11.1 and higher.")
         self._con = connection
-        self._ic = self._con.trans(fdb.ISOLATION_LEVEL_READ_COMMITED_RO).cursor()
+        self._ic = self._con.trans(fdb_embedded.ISOLATION_LEVEL_READ_COMMITED_RO).cursor()
         self.clear()
     def close(self):
-        """Sever link to :class:`~fdb.Connection`.
+        """Sever link to :class:`~fdb_embedded.Connection`.
         
         :raises ProgrammingError: If Monitor object was set as internal (via 
             :meth:`_set_as_internal`).
         """
         if self.__internal:
-            raise fdb.ProgrammingError("Call to 'close' not allowed for embedded Monitor.")
+            raise fdb_embedded.ProgrammingError("Call to 'close' not allowed for embedded Monitor.")
         self._close()
         self.clear()
     def clear(self):
@@ -479,7 +479,7 @@ class AttachmentInfo(BaseInfoItem):
     remote_process = property(__get_remote_process,None,None,
         "Remote client process pathname.")
     character_set = property(__get_character_set,None,None,
-        ":class:`~fdb.schema.CharacterSet` for this attachment.")
+        ":class:`~fdb_embedded.schema.CharacterSet` for this attachment.")
     timestamp = property(__get_timestamp,None,None,
         "Attachment date/time.")
     transactions = LateBindingProperty(_get_transactions,None,None,
@@ -508,11 +508,11 @@ class AttachmentInfo(BaseInfoItem):
         :raises ProgrammingError: If database has ODS lower than 11.2 or
             this attachement is current session.
         """
-        if self.monitor._con.ods < fdb.ODS_FB_25:
-            raise fdb.ProgrammingError("Attachments could be terminated only " \
+        if self.monitor._con.ods < fdb_embedded.ODS_FB_25:
+            raise fdb_embedded.ProgrammingError("Attachments could be terminated only " \
                                        "for databases with ODS 11.2 and higher.")
         elif self is self.monitor.this_attachment:
-            raise fdb.ProgrammingError("Can't terminate current session.")
+            raise fdb_embedded.ProgrammingError("Can't terminate current session.")
         else:
             self.monitor._ic.execute('delete from mon$attachments where mon$attachment_id = ?',
                                      (self.id,))
@@ -679,7 +679,7 @@ class StatementInfo(BaseInfoItem):
         :raises ProgrammingError: If this attachement is current session.
         """
         if self.attachment == self.monitor.this_attachment:
-            raise fdb.ProgrammingError("Can't terminate statement from current session.")
+            raise fdb_embedded.ProgrammingError("Can't terminate statement from current session.")
         else:
             self.monitor._ic.execute('delete from mon$statements where mon$statement_id = ?',
                                      (self.id,))
@@ -707,7 +707,7 @@ class CallStackInfo(BaseInfoItem):
         elif obj_type == 2: # trigger
             return self.monitor._con.schema.get_trigger(obj_name)
         else:
-            raise fdb.ProgrammingError("Unrecognized object type '%d'" % obj_type)
+            raise fdb_embedded.ProgrammingError("Unrecognized object type '%d'" % obj_type)
     def __get_timestamp(self):
         return self._attributes['MON$TIMESTAMP']
     def __get_line(self):
@@ -729,7 +729,7 @@ class CallStackInfo(BaseInfoItem):
     caller = property(__get_caller,None,None,
         "Call stack entry (:class:`CallStackInfo`) of the caller.")
     dbobject = property(__get_dbobject,None,None,
-        "PSQL object. :class:`~fdb.schema.Procedure` or :class:`~fdb.schema.Trigger` instance.")
+        "PSQL object. :class:`~fdb_embedded.schema.Procedure` or :class:`~fdb_embedded.schema.Trigger` instance.")
     timestamp = property(__get_timestamp,None,None,
         "Request start date/time.")
     line = property(__get_line,None,None,
@@ -767,7 +767,7 @@ class IOStatsInfo(BaseInfoItem):
         elif obj_type == STAT_CALL:
             return find(self.monitor.callstack)
         else:
-            raise fdb.ProgrammingError("Unrecognized stat group '%d'" % obj_type)
+            raise fdb_embedded.ProgrammingError("Unrecognized stat group '%d'" % obj_type)
     def __get_group(self):
         return self._attributes['MON$STAT_GROUP']
     def __get_reads(self):

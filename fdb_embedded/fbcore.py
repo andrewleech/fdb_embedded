@@ -42,7 +42,7 @@ try:
 except ImportError:
     # Python 3
     from itertools import zip_longest as izip_longest
-from fdb.ibase import (frb_info_att_charset, isc_dpb_activate_shadow,
+from fdb_embedded.ibase import (frb_info_att_charset, isc_dpb_activate_shadow,
     isc_dpb_address_path, isc_dpb_allocation, isc_dpb_begin_log,
     isc_dpb_buffer_length, isc_dpb_cache_manager, isc_dpb_cdd_pathname,
     isc_dpb_connect_timeout, isc_dpb_damaged, isc_dpb_dbkey_scope,
@@ -171,12 +171,12 @@ paramstyle = 'qmark'
 
 def load_api(fb_library_name=None):
     """Initializes bindings to Firebird Client Library unless they are already initialized.
-    Called automatically by :func:`fdb.connect` and :func:`fdb.create_database`.
+    Called automatically by :func:`fdb_embedded.connect` and :func:`fdb_embedded.create_database`.
 
     :param string fb_library_name: (optional) Path to Firebird Client Library.
        When it's not specified, FDB does its best to locate appropriate client library.
 
-    :returns: :class:`fdb.ibase.fbclient_API` instance.
+    :returns: :class:`fdb_embedded.ibase.fbclient_API` instance.
     """
     if not hasattr(sys.modules[__name__],'api'):
         setattr(sys.modules[__name__],'api',fbclient_API(fb_library_name))
@@ -633,7 +633,7 @@ def connect(dsn='', user=None, password=None, host=None, port=3050, database=Non
     :type isolation_level: 0, 1, 2 or 3
     :param connection_class: Custom connection class
     :type connection_class: subclass of :class:`Connection`
-    :param string fb_library_name: Full path to Firebird client library. See :func:`~fdb.load_api` for details.
+    :param string fb_library_name: Full path to Firebird client library. See :func:`~fdb_embedded.load_api` for details.
 
     :returns: Connection to database.
     :rtype: :class:`Connection` instance.
@@ -650,8 +650,8 @@ def connect(dsn='', user=None, password=None, host=None, port=3050, database=Non
 
     .. code-block:: python
 
-       con = fdb.connect(dsn='host:/path/database.fdb', user='sysdba', password='pass', charset='UTF8')
-       con = fdb.connect(host='myhost', database='/path/database.fdb', user='sysdba', password='pass', charset='UTF8')
+       con = fdb_embedded.connect(dsn='host:/path/database.fdb', user='sysdba', password='pass', charset='UTF8')
+       con = fdb_embedded.connect(host='myhost', database='/path/database.fdb', user='sysdba', password='pass', charset='UTF8')
     """
     load_api(fb_library_name)
     if connection_class == None:
@@ -728,7 +728,7 @@ def create_database(sql='', sql_dialect=3, dsn='', user=None, password=None,
     :param string files: Specification of secondary database files.
     :param connection_class: Custom connection class
     :type connection_class: subclass of :class:`Connection`
-    :param string fb_library_name: Full path to Firebird client library. See :func:`~fdb.load_api` for details.
+    :param string fb_library_name: Full path to Firebird client library. See :func:`~fdb_embedded.load_api` for details.
 
     :returns: Connection to the newly created database.
     :rtype: :class:`Connection` instance.
@@ -740,8 +740,8 @@ def create_database(sql='', sql_dialect=3, dsn='', user=None, password=None,
 
     .. code-block:: python
 
-       con = fdb.create_database("create database '/temp/db.fdb' user 'sysdba' password 'pass'")
-       con = fdb.create_database(dsn='/temp/db.fdb',user='sysdba',password='pass',page_size=8192)
+       con = fdb_embedded.create_database("create database '/temp/db.fdb' user 'sysdba' password 'pass'")
+       con = fdb_embedded.create_database(dsn='/temp/db.fdb',user='sysdba',password='pass',page_size=8192)
     """
     load_api(fb_library_name)
     if connection_class == None:
@@ -987,7 +987,7 @@ class Connection(object):
         # More informative error message:
         raise AttributeError("A connection's 'charset' property can be"
             " specified upon Connection creation as a keyword argument to"
-            " fdb.connect, but it cannot be modified thereafter."
+            " fdb_embedded.connect, but it cannot be modified thereafter."
             )
     def __get_group(self):
         if self.__group:
@@ -1186,7 +1186,7 @@ class Connection(object):
 
         .. note::  Some of the information available through this method would be
            more easily retrieved with the Services API (see submodule
-           :mod:`fdb.services`).
+           :mod:`fdb_embedded.services`).
         """
         self.__check_attached()
         request_buffer = bs([info_code])
@@ -1241,7 +1241,7 @@ class Connection(object):
         that parses the output of `database_info` into Python-friendly objects
         instead of returning raw binary buffers in the case of complex result types.
 
-        :param request: Single `fdb.isc_info_*` info request code or a sequence
+        :param request: Single `fdb_embedded.isc_info_*` info request code or a sequence
                         of such codes.
         :returns: Mapping of (info request code -> result).
         :raises ValueError: When requested code is not recognized.
@@ -1665,20 +1665,20 @@ class Connection(object):
     version = property(__get_version)
     #: (Read Only) (float) Firebird version number of connected server. Only major.minor version.
     engine_version = property(__get_engine_version)
-    #: (Read Only) (:class:`~fdb.schema.Schema`) Database metadata object.
+    #: (Read Only) (:class:`~fdb_embedded.schema.Schema`) Database metadata object.
     schema = utils.LateBindingProperty(_get_schema)
     #: (Read Only) (float) On-Disk Structure (ODS) version.
     ods = property(__get_ods)
 
-    #: (Read Only) (:class:`~fdb.monitor.Monitor`) Database monitoring object.
+    #: (Read Only) (:class:`~fdb_embedded.monitor.Monitor`) Database monitoring object.
     monitor = utils.LateBindingProperty(_get_monitor)
 
 
 @utils.embed_attributes(schema.Schema,'schema')
 class ConnectionWithSchema(Connection):
     """:class:`Connection` descendant that exposes all attributes of encapsulated
-    :class:`~fdb.schema.Schema` instance directly as connection attributes, except
-    :meth:`~fdb.schema.Schema.close` and :meth:`~fdb.schema.Schema.bind`, and
+    :class:`~fdb_embedded.schema.Schema` instance directly as connection attributes, except
+    :meth:`~fdb_embedded.schema.Schema.close` and :meth:`~fdb_embedded.schema.Schema.bind`, and
     those attributes that are already defined by Connection class.
 
     .. note::
@@ -4130,7 +4130,7 @@ class ConnectionGroup(object):
         ### CONTRAINTS ON $con: ###
         # con must be an instance of kinterbasdb.Connection:
         if not isinstance(con, Connection):
-            raise TypeError("con must be an instance of fdb.Connection")
+            raise TypeError("con must be an instance of fdb_embedded.Connection")
         # con cannot already be a member of this group:
         if con in self:
             raise ProgrammingError("con is already a member of this group.")
@@ -4890,7 +4890,7 @@ class TPB(_RequestBufferBuilder):
     #:
     #: .. code-block:: python
     #:
-    #:   tpb.table_reservation["MY_TABLE"] = (fdb.isc_tpb_protected, fdb.isc_tpb_lock_write)
+    #:   tpb.table_reservation["MY_TABLE"] = (fdb_embedded.isc_tpb_protected, fdb_embedded.isc_tpb_lock_write)
     table_reservation = property(_get_table_reservation,
                                  _set_table_reservation_access)
 

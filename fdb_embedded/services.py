@@ -1,6 +1,6 @@
 #coding:utf-8
 #
-#   PROGRAM/MODULE: fdb
+#   PROGRAM/MODULE: fdb_embedded
 #   FILE:           services.py
 #   DESCRIPTION:    Python driver for Firebird
 #   CREATED:        19.11.2011
@@ -21,10 +21,10 @@
 #
 # See LICENSE.TXT for details.
 
-import fdb
+import fdb_embedded
 import sys
 import os
-import fdb.ibase as ibase
+import fdb_embedded.ibase as ibase
 import ctypes
 import struct
 import warnings
@@ -175,9 +175,9 @@ def connect(host='service_mgr',
        host.  Therefore, the database specified as a parameter to methods such as
        `getStatistics` MUST NOT include the host name of the database server.
     """
-    setattr(sys.modules[__name__],'api',fdb.load_api())
+    setattr(sys.modules[__name__],'api',fdb_embedded.load_api())
     if password is None:
-        raise fdb.ProgrammingError('A password is required to use'
+        raise fdb_embedded.ProgrammingError('A password is required to use'
                                    ' the Services Manager.')
 
     _checkString(host)
@@ -243,17 +243,17 @@ class Connection(object):
         self.password = ibase.b(password)
 
         if len(self.host) + len(self.user) + len(self.password) > 118:
-            raise fdb.ProgrammingError("The combined length of host, user and"
+            raise fdb_embedded.ProgrammingError("The combined length of host, user and"
                                        " password can't exceed 118 bytes.")
         # spb_length = 2 + 1 + 1 + len(self.user) + 1 + 1 + len(self.password)
-        spb = fdb.bs([ibase.isc_spb_version, ibase.isc_spb_current_version,
+        spb = fdb_embedded.bs([ibase.isc_spb_version, ibase.isc_spb_current_version,
                       ibase.isc_spb_user_name, len(self.user)]) + self.user + \
-                      fdb.bs([ibase.isc_spb_password,
+                      fdb_embedded.bs([ibase.isc_spb_password,
                             len(self.password)]) + self.password
         api.isc_service_attach(self._isc_status, len(self.host), self.host,
                                  self._svc_handle, len(spb), spb)
-        if fdb.db_api_error(self._isc_status):
-            raise fdb.exception_from_status(fdb.DatabaseError,
+        if fdb_embedded.db_api_error(self._isc_status):
+            raise fdb_embedded.exception_from_status(fdb_embedded.DatabaseError,
                                             self._isc_status,
                                             "Services/isc_service_attach:")
         # Get Firebird engine version
@@ -293,14 +293,14 @@ class Connection(object):
     def __get_fetching(self):
         return self.__fetching
     def __read_buffer(self, init=''):
-        request = fdb.bs([ibase.isc_info_svc_to_eof])
+        request = fdb_embedded.bs([ibase.isc_info_svc_to_eof])
         spb = ibase.b('')
         api.isc_service_query(self._isc_status, self._svc_handle, None,
                                 len(spb), spb,
                                 len(request), request,
                                 ibase.USHRT_MAX, self._result_buffer)
-        if fdb.db_api_error(self._isc_status):
-            raise fdb.exception_from_status(fdb.DatabaseError,
+        if fdb_embedded.db_api_error(self._isc_status):
+            raise fdb_embedded.exception_from_status(fdb_embedded.DatabaseError,
                                   self._isc_status,
                                   "Services/isc_service_query:")
         (result, _) = self._extract_string(self._result_buffer, 1)
@@ -340,7 +340,7 @@ class Connection(object):
             return st
     def _extract_int(self, raw, index):
         new_index = index + ctypes.sizeof(ctypes.c_ushort)
-        return (fdb.bytes_to_int(raw[index:new_index]), new_index)
+        return (fdb_embedded.bytes_to_int(raw[index:new_index]), new_index)
     def _extract_string(self, raw, index):
         (size, index) = self._extract_int(raw, index)
         new_index = index + size
@@ -352,29 +352,29 @@ class Connection(object):
             return (str(raw[index:new_index]), new_index)
     def _Q(self, code, result_type, timeout=-1):
         if code < 0 or code > ibase.USHRT_MAX:
-            raise fdb.ProgrammingError("The service query request_buf code"
+            raise fdb_embedded.ProgrammingError("The service query request_buf code"
                                        " must fall between 0 and %d,"
                                        " inclusive." % ibase.USHRT_MAX)
         result = None
         result_size = 1024
-        request = fdb.bs([code])
+        request = fdb_embedded.bs([code])
         if timeout == -1:
             spb = ibase.b('')
         else:
-            spb = fdb.bs(ibase.isc_info_svc_timeout, timeout)
+            spb = fdb_embedded.bs(ibase.isc_info_svc_timeout, timeout)
         while True:
             result_buffer = ctypes.create_string_buffer(result_size)
             api.isc_service_query(self._isc_status, self._svc_handle, None,
                                     len(spb), spb,
                                     len(request), request,
                                     result_size, result_buffer)
-            if fdb.db_api_error(self._isc_status):
-                raise fdb.exception_from_status(fdb.DatabaseError,
+            if fdb_embedded.db_api_error(self._isc_status):
+                raise fdb_embedded.exception_from_status(fdb_embedded.DatabaseError,
                                       self._isc_status,
                                       "Services/isc_service_query:")
             if ord(result_buffer[0]) == ibase.isc_info_truncated:
                 if result_size == ibase.USHRT_MAX:
-                    raise fdb.InternalError("Database C API constraints maximum"
+                    raise fdb_embedded.InternalError("Database C API constraints maximum"
                                             "result buffer size to %d"
                                             % ibase.USHRT_MAX)
                 else:
@@ -426,13 +426,13 @@ class Connection(object):
         return self._Q(code, self.QUERY_TYPE_RAW)
     def _action_thin(self, request_buffer):
         if len(request_buffer) > ibase.USHRT_MAX:
-            raise fdb.ProgrammingError("The size of the request buffer"
+            raise fdb_embedded.ProgrammingError("The size of the request buffer"
                                        " must not exceed %d."
                                        % ibase.USHRT_MAX)
         api.isc_service_start(self._isc_status, self._svc_handle, None,
                                 len(request_buffer), request_buffer)
-        if fdb.db_api_error(self._isc_status):
-            raise fdb.exception_from_status(fdb.OperationalError,
+        if fdb_embedded.db_api_error(self._isc_status):
+            raise fdb_embedded.exception_from_status(fdb_embedded.OperationalError,
                          self._isc_status,
                          "Unable to perform the requested Service API action:")
         return None
@@ -452,7 +452,7 @@ class Connection(object):
         while 1:
             try:
                 line = self._QS(ibase.isc_info_svc_line)
-            except fdb.OperationalError:
+            except fdb_embedded.OperationalError:
                 # YYY: It is routine for actions such as RESTORE to raise an
                 # exception at the end of their output.  We ignore any such
                 # exception and assume that it was expected, which is somewhat
@@ -540,8 +540,8 @@ class Connection(object):
         """
         if self._svc_handle:
             api.isc_service_detach(self._isc_status, self._svc_handle)
-            if fdb.db_api_error(self._isc_status):
-                raise fdb.exception_from_status(fdb.DatabaseError,
+            if fdb_embedded.db_api_error(self._isc_status):
+                raise fdb_embedded.exception_from_status(fdb_embedded.DatabaseError,
                               self._isc_status, "Services/isc_service_detach:")
             self._svc_handle = None
             self.__fetching = False
@@ -627,7 +627,7 @@ class Connection(object):
         :returns tuple: Capability info codes for each capability reported by
            server.
 
-        Next fdb.services constants define possible info codes returned::
+        Next fdb_embedded.services constants define possible info codes returned::
 
             CAPABILITY_MULTI_CLIENT
             CAPABILITY_REMOTE_HOP
@@ -637,7 +637,7 @@ class Connection(object):
 
         Example::
 
-            >>>fdb.services.CAPABILITY_REMOTE_HOP in svc.get_server_capabilities()
+            >>>fdb_embedded.services.CAPABILITY_REMOTE_HOP in svc.get_server_capabilities()
             True
         """
         self.__check_active()
@@ -720,7 +720,7 @@ class Connection(object):
                 i += 5  # Advance past the marker byte and the 32-bit integer.
                 transIDs.append(transID)
             else:
-                raise fdb.InternalError('Unable to process buffer contents'
+                raise fdb_embedded.InternalError('Unable to process buffer contents'
                     ' beginning at position %d.' % i)
         return transIDs
     def _resolve_limbo_transaction(self, resolution, database, transaction_id):
@@ -877,7 +877,7 @@ class Connection(object):
               )
 
         if destFilenamesCount > 9999:
-            raise fdb.ProgrammingError("The database engine cannot output a"
+            raise fdb_embedded.ProgrammingError("The database engine cannot output a"
                 " single source database to more than 9999 backup files."
               )
         self._validate_companion_string_numeric_sequences(
@@ -1191,7 +1191,7 @@ class Connection(object):
             return int(response.split()[3])
         else:
             # response should contain the error message
-            raise fdb.DatabaseError(response)
+            raise fdb_embedded.DatabaseError(response)
     def trace_stop(self, trace_id):
         """Stop trace session.
 
@@ -1208,7 +1208,7 @@ class Connection(object):
         response = self._act_and_return_textual_results(reqBuf)
         if not response.startswith("Trace session ID %i stopped" % trace_id):
             # response should contain the error message
-            raise fdb.DatabaseError(response)
+            raise fdb_embedded.DatabaseError(response)
         return response
     def trace_suspend(self, trace_id):
         """Suspend trace session.
@@ -1227,7 +1227,7 @@ class Connection(object):
         response = self._act_and_return_textual_results(reqBuf)
         if not response.startswith("Trace session ID %i paused" % trace_id):
             # response should contain the error message
-            raise fdb.DatabaseError(response)
+            raise fdb_embedded.DatabaseError(response)
         return response
     def trace_resume(self, trace_id):
         """Resume trace session.
@@ -1246,7 +1246,7 @@ class Connection(object):
         response = self._act_and_return_textual_results(reqBuf)
         if not response.startswith("Trace session ID %i resumed" % trace_id):
             # response should contain the error message
-            raise fdb.DatabaseError(response)
+            raise fdb_embedded.DatabaseError(response)
         return response
     def trace_list(self):
         """Get information about existing trace sessions.
@@ -1286,7 +1286,7 @@ class Connection(object):
             elif line.lstrip().startswith("flags:"):
                 result[session_id]["flags"] = line.split(':')[1].strip().split(',')
             else:
-                raise fdb.OperationalError("Unexpected line in trace session list:`%s`" % line)
+                raise fdb_embedded.OperationalError("Unexpected line in trace session list:`%s`" % line)
         return result
     # Database property alteration methods:
     def set_default_page_buffers(self, database, n):
@@ -1331,14 +1331,14 @@ class Connection(object):
 
         :param string database: Database filename or alias.
         :param integer mode: One from following constants:
-           :data:`~fdb.services.WRITE_FORCED` or
-           :data:`~fdb.services.WRITE_BUFFERED`
+           :data:`~fdb_embedded.services.WRITE_FORCED` or
+           :data:`~fdb_embedded.services.WRITE_BUFFERED`
         """
         self.__check_active()
         _checkString(database)
         if mode not in (WRITE_FORCED, WRITE_BUFFERED):
             raise ValueError('mode must be one of the following constants:'
-                '  fdb.services.WRITE_FORCED, fdb.services.WRITE_BUFFERED.')
+                '  fdb_embedded.services.WRITE_FORCED, fdb_embedded.services.WRITE_BUFFERED.')
         self._property_action_with_one_num_code(database,
                                                 ibase.isc_spb_prp_write_mode,
                                                 mode, num_ctype='b')
@@ -1347,14 +1347,14 @@ class Connection(object):
 
         :param string database: Database filename or alias.
         :param integer mode: One from following constants:
-           :data:`~fdb.services.ACCESS_READ_WRITE` or
-           :data:`~fdb.services.ACCESS_READ_ONLY`
+           :data:`~fdb_embedded.services.ACCESS_READ_WRITE` or
+           :data:`~fdb_embedded.services.ACCESS_READ_ONLY`
         """
         self.__check_active()
         _checkString(database)
         if mode not in (ACCESS_READ_WRITE, ACCESS_READ_ONLY):
             raise ValueError('mode must be one of the following constants:'
-                ' fdb.services.ACCESS_READ_WRITE, fdb.services.ACCESS_READ_ONLY.')
+                ' fdb_embedded.services.ACCESS_READ_WRITE, fdb_embedded.services.ACCESS_READ_ONLY.')
         self._property_action_with_one_num_code(database,
                                                 ibase.isc_spb_prp_access_mode,
                                                 mode, num_ctype='b')
@@ -1388,12 +1388,12 @@ class Connection(object):
 
         :param string database: Database filename or alias.
         :param integer shutdown_mode: One from following constants:
-           :data:`~fdb.services.SHUT_LEGACY`, :data:`~fdb.services.SHUT_SINGLE`,
-           :data:`~fdb.services.SHUT_MULTI` or :data:`~fdb.services.SHUT_FULL`.
+           :data:`~fdb_embedded.services.SHUT_LEGACY`, :data:`~fdb_embedded.services.SHUT_SINGLE`,
+           :data:`~fdb_embedded.services.SHUT_MULTI` or :data:`~fdb_embedded.services.SHUT_FULL`.
         :param integer shutdown_method: One from following constants:
-           :data:`~fdb.services.SHUT_FORCE`,
-           :data:`~fdb.services.SHUT_DENY_NEW_TRANSACTIONS`
-           or :data:`~fdb.services.SHUT_DENY_NEW_ATTACHMENTS`.
+           :data:`~fdb_embedded.services.SHUT_FORCE`,
+           :data:`~fdb_embedded.services.SHUT_DENY_NEW_TRANSACTIONS`
+           or :data:`~fdb_embedded.services.SHUT_DENY_NEW_ATTACHMENTS`.
         :param integer timeout: Time in seconds, that the shutdown must complete in.
 
         .. seealso:: See also :meth:`~Connection.bring_online` method.
@@ -1402,15 +1402,15 @@ class Connection(object):
         _checkString(database)
         if shutdown_mode not in (SHUT_LEGACY, SHUT_SINGLE, SHUT_MULTI, SHUT_FULL):
             raise ValueError('shutdown_mode must be one of the following'
-                ' constants:  fdb.services.SHUT_LEGACY, fdb.services.SHUT_SINGLE,'
-                ' fdbfdb.services.SHUT_MULTI,'
-                ' fdb.services.SHUT_FULL.')
+                ' constants:  fdb_embedded.services.SHUT_LEGACY, fdb_embedded.services.SHUT_SINGLE,'
+                ' fdb_embeddedfdb_embedded.services.SHUT_MULTI,'
+                ' fdb_embedded.services.SHUT_FULL.')
         if shutdown_method not in (SHUT_FORCE, SHUT_DENY_NEW_TRANSACTIONS,
                                    SHUT_DENY_NEW_ATTACHMENTS):
             raise ValueError('shutdown_method must be one of the following'
-                ' constants:  fdb.services.SHUT_FORCE,'
-                ' fdb.services.SHUT_DENY_NEW_TRANSACTIONS,'
-                ' fdb.services.SHUT_DENY_NEW_ATTACHMENTS.')
+                ' constants:  fdb_embedded.services.SHUT_FORCE,'
+                ' fdb_embedded.services.SHUT_DENY_NEW_TRANSACTIONS,'
+                ' fdb_embedded.services.SHUT_DENY_NEW_ATTACHMENTS.')
         reqBuf = _ServiceActionRequestBuilder()
         if shutdown_mode != SHUT_LEGACY:
             reqBuf.add_numeric(ibase.isc_spb_prp_shutdown_mode,
@@ -1422,8 +1422,8 @@ class Connection(object):
 
         :param string database: Database filename or alias.
         :param integer online_mode: (Optional) One from following constants:
-           :data:`~fdb.services.SHUT_LEGACY`, :data:`~fdb.services.SHUT_SINGLE`,
-           :data:`~fdb.services.SHUT_MULTI` or :data:`~fdb.services.SHUT_NORMAL` (**Default**).
+           :data:`~fdb_embedded.services.SHUT_LEGACY`, :data:`~fdb_embedded.services.SHUT_SINGLE`,
+           :data:`~fdb_embedded.services.SHUT_MULTI` or :data:`~fdb_embedded.services.SHUT_NORMAL` (**Default**).
 
         .. seealso:: See also :meth:`~Connection.shutdown` method.
         """
@@ -1431,9 +1431,9 @@ class Connection(object):
         _checkString(database)
         if online_mode not in (SHUT_LEGACY, SHUT_NORMAL,SHUT_SINGLE, SHUT_MULTI):
             raise ValueError('online_mode must be one of the following'
-                ' constants:  fdb.services.SHUT_LEGACY, fdb.services.SHUT_NORMAL,'
-                ' fdbfdb.services.SHUT_SINGLE,'
-                ' fdb.services.SHUT_MULTI.')
+                ' constants:  fdb_embedded.services.SHUT_LEGACY, fdb_embedded.services.SHUT_NORMAL,'
+                ' fdb_embedded.services.SHUT_SINGLE,'
+                ' fdb_embedded.services.SHUT_MULTI.')
         reqBuf = _ServiceActionRequestBuilder()
         if online_mode == SHUT_LEGACY:
             reqBuf.add_option_mask(ibase.isc_spb_prp_db_online)
@@ -1580,13 +1580,13 @@ class Connection(object):
         """
         self.__check_active()
         if not user.name:
-            raise fdb.ProgrammingError('You must specify a username.')
+            raise fdb_embedded.ProgrammingError('You must specify a username.')
         else:
             _checkString(user.name)
             user.name = ibase.b(user.name)
 
         if not user.password:
-            raise fdb.ProgrammingError('You must specify a password.')
+            raise fdb_embedded.ProgrammingError('You must specify a password.')
         else:
             _checkString(user.password)
             user.password = ibase.b(user.password)
@@ -1714,7 +1714,7 @@ class User(object):
         self.group_id = None
 
     def __str__(self):
-        return '<fdb.services.User %s>' % (
+        return '<fdb_embedded.services.User %s>' % (
             (self.name is None and 'without a name')
             or 'named "%s"' % self.name)
     def load_information(self,svc):
@@ -1727,7 +1727,7 @@ class User(object):
         :raises ProgrammingError: If user name is not defined.
         """
         if self.name is None:
-            raise fdb.ProgrammingError("Can't load information about user without name.")
+            raise fdb_embedded.ProgrammingError("Can't load information about user without name.")
         user = svc.get_users(self.name)
         if len(user) > 0:
             self.first_name = user.first_name
@@ -1791,9 +1791,9 @@ class _ServiceActionRequestBuilder(object):
         # message with Firebird 1.5 (though it would not have raised an error
         # at all with Firebird 1.0 and earlier).
         ### Todo: verify handling of P version differences, refactor
-        databaseName = ibase.b(databaseName,fdb.fbcore._FS_ENCODING)
+        databaseName = ibase.b(databaseName,fdb_embedded.fbcore._FS_ENCODING)
         if ibase.PYTHON_MAJOR_VER == 3:
-            colonIndex = (databaseName.decode(fdb.fbcore._FS_ENCODING)).find(':')
+            colonIndex = (databaseName.decode(fdb_embedded.fbcore._FS_ENCODING)).find(':')
         else:
             colonIndex = databaseName.find(':')
         if colonIndex != -1:
@@ -1806,7 +1806,7 @@ class _ServiceActionRequestBuilder(object):
                 #
                 # Files that don't exist might still be valid if the connection
                 # is to a server other than the local machine.
-                not os.path.exists(ibase.nativestr(databaseName,fdb.fbcore._FS_ENCODING))
+                not os.path.exists(ibase.nativestr(databaseName,fdb_embedded.fbcore._FS_ENCODING))
                 # "Guess" that if the colon falls within the first two
                 # characters of the string, the pre-colon portion refers to a
                 # Windows drive letter rather than to a remote host.

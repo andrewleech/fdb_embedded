@@ -20,11 +20,11 @@
 #
 # See LICENSE.TXT for details.
 
-from fdb.fbcore import *
-from fdb.fbcore import __version__
-from fdb import services
-#from fdb import schema
-#from fdb import utils
+from fdb_embedded.fbcore import *
+from fdb_embedded.fbcore import __version__
+from fdb_embedded import services
+#from fdb_embedded import schema
+#from fdb_embedded import utils
 
 __all__ = (# Common with KInterbasDB
            'BINARY', 'Binary', 'BlobReader', 'Connection', 'ConnectionGroup', 
