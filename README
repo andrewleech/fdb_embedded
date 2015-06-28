@@ -9,7 +9,7 @@ with KInterbasDB as possible, but there are some differences. See FDB docuentati
 of these differences.
 
 Building:
-git clone --recursive ssh://git@gitlab.alelec.net:6522/corona/fdb.git fdb
+git clone --recursive https://github.com/andrewleech/fdb_embedded.git
 cd fdb
 python setup.py bdist_wheel
-python -m pip install dist/fdb*.whl
+python -m pip install dist/fdb_embedded*.whl
