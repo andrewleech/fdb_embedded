@@ -55,7 +55,7 @@ def download_file(url, dest):
         print("Using previously downloaded: %s" % (file_name))
     else:
         with open(file_name, 'wb') as fp:
-            print("Downloading: %s KB: %s" % (file_name, file_size/1024))
+            print("Downloading: %s %s KB" % (file_name, file_size/1024))
 
             file_size_dl = 0
             block_sz = 8192
@@ -87,14 +87,6 @@ def extract(filename):
         os.makedirs(folder)
         zip = zipfile.ZipFile(filename, 'r')
         zip.extractall(folder)
-
-        if folder.endswith('pkg'): # osx
-            pkg = folder
-            folder, extension = os.path.splitext(pkg)
-            if os.path.exists(folder):
-                shutil.rmtree(folder, onerror=_shutil_remove_readonly)
-            os.makedirs(folder)
-            os.system("pkgutil --extract {pkg} {folder}".format(pkg=pkg, folder=folder))
     else:
         import tarfile
         if os.path.exists(folder):
@@ -121,9 +113,26 @@ def download_win32(output_dir):
 def download_osx(output_dir):
     archive = download_file(URLS['osx_lipo'], output_dir)
     folder = extract(archive)
+
+    inner_archive = None
+    if folder.endswith('pkg'): # osx
+        for root, dirs, names in os.walk(folder):
+            if "Archive.pax.gz" in names:
+                inner_archive = os.path.join(root, 'Archive.pax.gz')
+                break
+    if not inner_archive:
+        raise OSError("Required library missing from download: 'Archive.pax.gz'" )
+
+    curdir = os.path.abspath(os.curdir)
+    os.chdir(folder)
+    os.system("gzip -cd {pkg} |pax -r".format(pkg=os.path.relpath(inner_archive, folder)))
+    os.chdir(curdir)
+
     libfbembed = os.path.join(folder,'Firebird.framework','Versions','A','Libraries','libfbembed.dylib')
     if not os.path.exists(libfbembed):
-        raise OSError("Required library missing from download: " + libfbembed)
+        libfbembed = os.path.join(folder,'Firebird.framework','Versions','A','Libraries','libfbclient.dylib')
+        if not os.path.exists(libfbembed):
+            raise OSError("Required library missing from download: " + libfbembed)
     # add relative path searching for dependent libraries
     os.system("""\
     export LIBLOC={folder}/Firebird.framework/Versions/A/Libraries
@@ -138,7 +147,7 @@ def download_osx(output_dir):
     install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib $LIBLOC/libicui18n.dylib
     """.format(folder=folder, libfbembed=libfbembed))
 
-    libs = glob(os.path.join(folder,'*.dylib'))
+    libs = glob(os.path.join(folder,'Firebird.framework','Versions','A','Libraries','*.dylib'))
     return libs
 
 def download_linux(output_dir):
@@ -204,6 +213,9 @@ def build_win32(src_dir):
 
 
 def build_osx(src_dir):
+    if len(os.listdir(src_dir)) == 1:
+        src_dir = os.path.join(src_dir,os.listdir(src_dir)[0])
+
     def _built_files():
         return [lib for lib in [os.path.join(src_dir,'gen','firebird','lib','libfbembed.dylib')] + \
           glob(os.path.join(src_dir,'gen','firebird','lib','libicu*.dylib')) if os.path.exists(lib)]
