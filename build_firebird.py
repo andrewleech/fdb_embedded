@@ -72,25 +72,26 @@ def download_file(url, dest):
             print(" Done.")
     return file_name
 
-def _shutil_remove_readonly(func, path, excinfo):
-    "Clear the readonly bit and reattempt the removal"
-    import stat
-    os.chmod(path, stat.S_IWUSR)
-    func(path)
+def rmdir(path):
+    print("Removing: %s" % path)
+    if platform == "win32":
+        os.system("RMDIR %s /s /q" % path)
+    else:
+        os.system("rm -rf %s" % path)
 
 def extract(filename):
     folder, extension = os.path.splitext(filename)
     if extension.endswith('zip'):
         import zipfile
         if os.path.exists(folder):
-            shutil.rmtree(folder, onerror=_shutil_remove_readonly)
+            rmdir(folder)
         os.makedirs(folder)
         zip = zipfile.ZipFile(filename, 'r')
         zip.extractall(folder)
     else:
         import tarfile
         if os.path.exists(folder):
-            shutil.rmtree(folder, onerror=_shutil_remove_readonly)
+            rmdir(folder)
         os.makedirs(folder)
         tar = tarfile.open(filename, "r")
         tar.extractall(folder)
