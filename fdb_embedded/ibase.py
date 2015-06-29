@@ -1174,9 +1174,11 @@ class fbclient_API(object):
             if sys.platform == 'darwin':
                 fb_library_name = os.path.join(libpath, 'libfbembed.dylib')
                 if not os.path.exists(fb_library_name):
-                    fb_library_name = find_library('fbembed')
-                    if not fb_library_name:
-                        fb_library_name = find_library('Firebird')
+                    fb_library_name = os.path.join(libpath, 'libfbclient.dylib')
+                    if not os.path.exists(fb_library_name):
+                        fb_library_name = find_library('fbembed')
+                        if not fb_library_name:
+                            fb_library_name = find_library('Firebird')
 
             # Next elif is necessary hotfix for ctypes issue
             # http://bugs.python.org/issue16283

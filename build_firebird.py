@@ -131,9 +131,7 @@ def download_osx(output_dir):
 
     libfbembed = os.path.join(folder,'Firebird.framework','Versions','A','Libraries','libfbembed.dylib')
     if not os.path.exists(libfbembed):
-        libfbembed = os.path.join(folder,'Firebird.framework','Versions','A','Libraries','libfbclient.dylib')
-        if not os.path.exists(libfbembed):
-            raise OSError("Required library missing from download: " + libfbembed)
+        raise OSError("Required library missing from download: " + libfbembed)
     # add relative path searching for dependent libraries
     os.system("""\
     export LIBLOC={folder}/Firebird.framework/Versions/A/Libraries
@@ -292,19 +290,26 @@ def build_linux(src_dir):
 
 
 def build(build_dir):
+    ret = None
     platform = sys.platform
     if platform == "win32":
-        ret = download_win32(build_dir)
+        try:
+            ret = download_win32(build_dir)
+        except OSError as ex: print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
             ret = build_win32(src_dir)
     elif platform == "darwin":
-        ret = download_osx(build_dir)
+        try:
+            ret = download_osx(build_dir)
+        except OSError as ex: print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
             ret = build_osx(src_dir)
     elif platform.startswith("linux"):
-        ret = download_linux(build_dir)
+        try:
+            ret = download_linux(build_dir)
+        except OSError as ex: print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
             ret = build_linux(src_dir)
