@@ -46,7 +46,10 @@ class BuildFirebirdCommand(distutils.cmd.Command):
     def initialize_options(self):
         """Set default values for options."""
         # Each user option must be listed here with their default value.
-        self.firebird_source = os.path.join(os.path.dirname(__file__), 'firebird')
+        self.firebird_source = os.path.join(os.path.dirname(__file__), 'build', 'firebird')
+        if not os.path.exists(self.firebird_source):
+            os.makedirs(self.firebird_source)
+
 
     def finalize_options(self):
         """Post-process options."""
@@ -73,7 +76,7 @@ setup(name='fdb_embedded',
     author='Andrew Leech',
     author_email='andrew@alelec.net',
     long_description=__doc__,
-    install_requires=[],
+    install_requires=['requests'],
     setup_requires=[],
     cmdclass={
         'build_firebird': BuildFirebirdCommand,
