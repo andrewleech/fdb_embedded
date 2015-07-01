@@ -10,7 +10,7 @@ import platform
 from glob import glob
 from setuptools import setup, find_packages
 from fdb_embedded import __version__
-#import setuptools.command.build_py
+from setuptools.command import build_ext
 from distutils.command.build import build
 import distutils.cmd
 import build_firebird
@@ -18,6 +18,7 @@ import build_firebird
 # Monkey-patch Distribution so it always claims to be platform-specific.
 from distutils.core import Distribution
 Distribution.has_ext_modules = lambda *args, **kwargs: True
+Distribution.is_pure = lambda *args, **kwargs: False
 
 classifiers = [
     'Development Status :: 5 - Production/Stable',
@@ -28,12 +29,12 @@ classifiers = [
 ]
 
 
-class BuildCommand(build):
-    """Custom build command."""
-
-    def run(self):
-        self.run_command('build_firebird')
-        build.run(self)
+# class BuildCommand(build_ext):
+#     """Custom build command."""
+#
+#     def run(self):
+#         self.run_command('build_firebird')
+#         build.run(self)
 
 class BuildFirebirdCommand(distutils.cmd.Command):
     """A custom command to build firebird embedded libraries."""
@@ -49,7 +50,10 @@ class BuildFirebirdCommand(distutils.cmd.Command):
         self.firebird_source = os.path.join(os.path.dirname(__file__), 'build', 'firebird')
         if not os.path.exists(self.firebird_source):
             os.makedirs(self.firebird_source)
+        self.data_files = []
 
+    # def __getattr__(self, item):
+    #     return distutils.cmd.Command.__getattr__(self, item)
 
     def finalize_options(self):
         """Post-process options."""
@@ -59,11 +63,26 @@ class BuildFirebirdCommand(distutils.cmd.Command):
     def run(self):
         """Run command."""
         package_data = build_firebird.build(self.firebird_source)
-        libdir = os.path.join(".","fdb_embedded","lib")
+        libdir = os.path.join("fdb_embedded","lib")
         if not os.path.exists(libdir):
             os.makedirs(libdir)
-        [shutil.copy(lib, libdir) for lib in package_data]
-        self.distribution.package_data['fdb_embedded'] += [os.path.relpath(lib, os.path.join(".","fdb_embedded")) for lib in glob(os.path.join(libdir, '*'))]
+        data_files = []
+        for lib in package_data:
+            dest = os.path.join(libdir, lib)
+            if os.path.isdir(lib):
+                if os.path.exists(dest):
+                    shutil.rmtree(dest)
+                shutil.copytree(lib, dest)
+                for root, dirname, filename in os.walk(dest):
+                    data_files.append(os.path.join(root, filename))
+            else:
+                shutil.copy(lib, libdir)
+                data_files.append(os.path.join(libdir, os.path.basename(lib)))
+        self.data_files = data_files
+        #self.distribution.package_data['fdb_embedded'] += data_files
+
+    def get_source_files(self):
+        return self.data_files
 
 
 setup(name='fdb_embedded',
@@ -80,8 +99,9 @@ setup(name='fdb_embedded',
     setup_requires=[],
     cmdclass={
         'build_firebird': BuildFirebirdCommand,
-        'build': BuildCommand,
+        'build_ext': BuildFirebirdCommand,
     },
+    ext_modules=[('firebird', 'dummy')],
     packages=find_packages(exclude=['ez_setup']),
     test_suite='nose.collector',
     include_package_data=False,

@@ -104,12 +104,14 @@ def download_source(build_dir):
 
 
 def download_win32(output_dir):
+    libs = []
     arch = "win32_%s" % PLATFORM
     if arch in URLS:
         archive = download_file(URLS[arch], output_dir)
         folder = extract(archive)
         libs = glob(os.path.join(folder,'*.dll'))
-        return libs
+    [print("downloaded %s lib: %s" % (arch,lib)) for lib in libs]
+    return libs
 
 def download_osx(output_dir):
     archive = download_file(URLS['osx_lipo'], output_dir)
@@ -129,24 +131,22 @@ def download_osx(output_dir):
     os.system("gzip -cd {pkg} |pax -r".format(pkg=os.path.relpath(inner_archive, folder)))
     os.chdir(curdir)
 
-    libfbembed = os.path.join(folder,'Firebird.framework','Versions','A','Libraries','libfbembed.dylib')
-    if not os.path.exists(libfbembed):
-        raise OSError("Required library missing from download: " + libfbembed)
+    framework = os.path.join(folder,'Firebird.framework')
+    if not os.path.exists(framework):
+        raise OSError("Required library missing from download: " + framework)
     # add relative path searching for dependent libraries
     os.system("""\
-    export LIBLOC={folder}/Firebird.framework/Versions/A/Libraries
     export OLDPATH=/Library/Frameworks/Firebird.framework/Versions/A/Libraries
+    install_name_tool -change $OLDPATH/libicuuc.dylib   @loader_path/Libraries/libicuuc.dylib   {framework}/Firebird
+    install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/Libraries/libicudata.dylib {framework}/Firebird
+    install_name_tool -change $OLDPATH/libicui18n.dylib @loader_path/Libraries/libicui18n.dylib {framework}/Firebird
+    install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib           {framework}/Libraries/libicuuc.dylib
+    install_name_tool -change $OLDPATH/libicuuc.dylib   @loader_path/libicuuc.dylib             {framework}/Libraries/libicui18n.dylib
+    install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib           {framework}/Libraries/libicui18n.dylib
+    """.format(folder=folder, framework=framework))
 
-    install_name_tool -change $OLDPATH @loader_path {libfbembed}
-    install_name_tool -change $OLDPATH/libicuuc.dylib @loader_path/libicuuc.dylib {libfbembed}
-    install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib {libfbembed}
-    install_name_tool -change $OLDPATH/libicui18n.dylib @loader_path/libicui18n.dylib {libfbembed}
-    install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib $LIBLOC/libicuuc.dylib
-    install_name_tool -change $OLDPATH/libicuuc.dylib @loader_path/libicuuc.dylib $LIBLOC/libicui18n.dylib
-    install_name_tool -change $OLDPATH/libicudata.dylib @loader_path/libicudata.dylib $LIBLOC/libicui18n.dylib
-    """.format(folder=folder, libfbembed=libfbembed))
-
-    libs = glob(os.path.join(folder,'Firebird.framework','Versions','A','Libraries','*.dylib'))
+    libs = [framework]
+    [print("downloaded osx lib: " + lib) for lib in libs]
     return libs
 
 def download_linux(output_dir):
@@ -189,9 +189,11 @@ def download_linux(output_dir):
             chrpath -r '$$ORIGIN:$CURRENT' {lib}
             """.format(lib=lib))
 
+        [print("downloaded linux lib: " + lib) for lib in libs]
         return libs
 
 def build_win32(src_dir):
+    #TODO amd64 support
     def _built_files():
         return [lib for lib in [os.path.join(src_dir,'gen','Win32','fbembed.dll')] + \
           glob(os.path.join(src_dir,'gen','Win32','icu*.dll')) if os.path.exists(lib)]
@@ -208,6 +210,7 @@ def build_win32(src_dir):
         """)
         os.chdir(curdir)
     built_files = _built_files()
+    [print("built win32 lib: " + lib) for lib in built_files]
     return built_files
 
 
@@ -262,6 +265,7 @@ def build_osx(src_dir):
 
         os.chdir(curdir)
     built_files = _built_files()
+    [print("built osx lib: " + lib) for lib in built_files]
     return built_files
 
 
@@ -286,6 +290,7 @@ def build_linux(src_dir):
 
         os.chdir(curdir)
     built_files = _built_files()
+    [print("built linux lib: " + lib) for lib in built_files]
     return built_files
 
 
