@@ -81,14 +81,14 @@ class BuildFirebirdCommand(build_ext):
         for lib in libraries:
             dest = os.path.join(libdir, os.path.basename(lib))
             if os.path.isdir(lib):
-                outfiles.append( copy_tree(lib, dest, update=True) )
+                outfiles.extend( copy_tree(lib, dest, preserve_symlinks=True, update=True) )
             else:
                 shutil.copy(lib, libdir)
                 outfiles.append(dest)
         self.outfiles = outfiles
 
         ## Copy firebird libraries into build dir to be included in binary dist
-        copy_tree(libdir, os.path.join(self.build_lib, libdir), update=True)
+        copy_tree(libdir, os.path.join(self.build_lib, libdir), preserve_symlinks=True, update=True)
 
         ## Update ext_modules list for use later on in install_egg_info
         self.distribution.ext_modules = [(name, None) for name in self.outfiles]
@@ -293,6 +293,7 @@ def build_osx(src_dir):
         export LIBTOOLIZE=glibtoolize
         export LIBTOOL=glibtool
         sh autogen.sh
+        cp builds/posix/prefix.darwin_x86_64 gen/make.platform
         make gen
         """)
         for line in fileinput.input("./gen/make.platform", inplace=True):
@@ -370,7 +371,7 @@ def firebird_libraries(build_dir):
             ret = build_win32(src_dir)
     elif platform == "darwin":
         try:
-            ret = download_osx(build_dir)
+           ret = download_osx(build_dir)
         except OSError as ex: print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
