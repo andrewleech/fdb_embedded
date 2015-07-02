@@ -1,10 +1,16 @@
 from __future__ import print_function
 import os
 import sys
+import ssl
 import shutil
+import socket
+import httplib
 import platform
 import fileinput
 from glob import glob
+from distutils.dir_util import copy_tree, remove_tree
+from setuptools.command.build_ext import build_ext
+from distutils.dir_util import copy_tree
 
 FIREBIRD_VERSION = "2.5.4"
 
@@ -18,18 +24,12 @@ URLS = {
     "osx_lipo"      : "http://sourceforge.net/projects/firebird/files/firebird-MacOS-X_darwin/2.5.4-Release/FirebirdCS-2.5.4-26856-lipo-x86_64.pkg.zip"
 }
 
-if platform.architecture()[0] == '32bit':
-    PLATFORM = "x86"
-elif platform.architecture()[0] == '64bit':
-    PLATFORM = "amd64"
-else:
-    raise NotImplementedError
+# Monkey-patch Distribution so it always claims to be platform-specific.
+from distutils.core import Distribution
+Distribution.has_ext_modules = lambda s, *args, **kwargs: True #   lambda s, *args, **kwargs: s.ext_modules = ["dummy"] if not s.ext_modules else s.ext_modules
+Distribution.is_pure = lambda *args, **kwargs: False
 
-import httplib
-import socket
-import ssl
-import urllib2
-
+## SSL wrapper
 def connect(self):
     "Connect to a host on a given (SSL) port."
     sock = socket.create_connection((self.host, self.port),
@@ -40,6 +40,70 @@ def connect(self):
     self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=ssl.PROTOCOL_TLSv1)
 
 httplib.HTTPSConnection.connect = connect
+
+
+## We need to pass something testable to setup(ext_modules=<value>) to trigger pure/plat decision in distutils.command.build.finalize_options()
+ext_modules = [True]
+
+class BuildFirebirdCommand(build_ext):
+    """A custom command to build firebird embedded libraries."""
+
+    description = 'build firebird embedded libraries'
+    user_options = [
+        # The format is (long option, short option, description).
+        ('firebird-source=', None, 'path to firebird source tree'),
+    ]
+    def initialize_options(self):
+        """Set default values for options."""
+        # Each user option must be listed here with their default value.
+        self.build_lib = None
+        self.firebird_staging = os.path.join(os.path.dirname(__file__), 'build', 'firebird')
+        if not os.path.exists(self.firebird_staging):
+            os.makedirs(self.firebird_staging)
+        self.outfiles = []
+
+    def finalize_options(self):
+        """Post-process options."""
+        self.set_undefined_options('build',
+                           ('build_lib', 'build_lib'))
+        assert os.path.exists(self.firebird_staging), (
+              'Firebird source %s does not exist.' % self.firebird_staging)
+
+    def run(self):
+        """Run command."""
+        libraries = firebird_libraries(self.firebird_staging)
+
+        ## Copy firebird libraries into module in-place
+        libdir = os.path.join('fdb_embedded',"lib")
+        if not os.path.exists(libdir):
+            os.makedirs(libdir)
+        outfiles = []
+        for lib in libraries:
+            dest = os.path.join(libdir, os.path.basename(lib))
+            if os.path.isdir(lib):
+                outfiles.append( copy_tree(lib, dest, update=True) )
+            else:
+                shutil.copy(lib, libdir)
+                outfiles.append(dest)
+        self.outfiles = outfiles
+
+        ## Copy firebird libraries into build dir to be included in binary dist
+        copy_tree(libdir, os.path.join(self.build_lib, libdir), update=True)
+
+        ## Update ext_modules list for use later on in install_egg_info
+        self.distribution.ext_modules = [(name, None) for name in self.outfiles]
+
+    def get_source_files(self):
+        return []
+
+
+if platform.architecture()[0] == '32bit':
+    PLATFORM = "x86"
+elif platform.architecture()[0] == '64bit':
+    PLATFORM = "amd64"
+else:
+    raise NotImplementedError
+
 
 
 def download_file(url, dest):
@@ -72,26 +136,26 @@ def download_file(url, dest):
             print(" Done.")
     return file_name
 
-def rmdir(path):
-    print("Removing: %s" % path)
-    if platform == "win32":
-        os.system("RMDIR %s /s /q" % path)
-    else:
-        os.system("rm -rf %s" % path)
+# def rmdir(path):
+#     print("Removing: %s" % path)
+#     if sys.platform == "win32":
+#         os.system("RMDIR /s /q %s" % os.path.normpath(path))
+#     else:
+#         os.system("rm -rf %s" % path)
 
 def extract(filename):
     folder, extension = os.path.splitext(filename)
     if extension.endswith('zip'):
         import zipfile
         if os.path.exists(folder):
-            rmdir(folder)
+            remove_tree(folder)
         os.makedirs(folder)
         zip = zipfile.ZipFile(filename, 'r')
         zip.extractall(folder)
     else:
         import tarfile
         if os.path.exists(folder):
-            rmdir(folder)
+            remove_tree(folder)
         os.makedirs(folder)
         tar = tarfile.open(filename, "r")
         tar.extractall(folder)
@@ -294,7 +358,7 @@ def build_linux(src_dir):
     return built_files
 
 
-def build(build_dir):
+def firebird_libraries(build_dir):
     ret = None
     platform = sys.platform
     if platform == "win32":
