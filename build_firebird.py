@@ -41,9 +41,17 @@ def connect(self):
 
 httplib.HTTPSConnection.connect = connect
 
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    def __getattr__(self, attr):
+        return self.get(attr)
+    __setattr__= dict.__setitem__
+    __delattr__= dict.__delitem__
+
+
 
 ## We need to pass something testable to setup(ext_modules=<value>) to trigger pure/plat decision in distutils.command.build.finalize_options()
-ext_modules = [True]
+ext_modules = [dotdict(name='firebird')]
 
 class BuildFirebirdCommand(build_ext):
     """A custom command to build firebird embedded libraries."""

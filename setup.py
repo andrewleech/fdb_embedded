@@ -3,8 +3,10 @@
 It works on Python 2.6+ and Python 3.x.
 
 """
+import sys
 from setuptools import setup, find_packages
 from fdb_embedded import __version__
+from setuptools.command.test import test as TestCommand
 import build_firebird
 
 classifiers = [
@@ -14,6 +16,25 @@ classifiers = [
     'Programming Language :: Python',
     'Topic :: Database',
 ]
+
+class Tox(TestCommand):
+    user_options = [('tox-args=', 'a', "Arguments to pass to tox")]
+    def initialize_options(self):
+        TestCommand.initialize_options(self)
+        self.tox_args = []
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+    def run_tests(self):
+        #import here, cause outside the eggs aren't loaded
+        import tox
+        import shlex
+        args = self.tox_args
+        if args:
+            args = shlex.split(self.tox_args)
+        errno = tox.cmdline(args=args)
+        sys.exit(errno)
 
 
 setup(name='fdb_embedded',
@@ -28,12 +49,13 @@ setup(name='fdb_embedded',
     long_description=__doc__,
     install_requires=['requests'],
     setup_requires=[],
-    cmdclass={
+    tests_require=['tox'],
+    cmdclass = {
+        'test': Tox,
         'build_ext': build_firebird.BuildFirebirdCommand,
     },
     ext_modules=build_firebird.ext_modules,
     packages=find_packages(exclude=['ez_setup']),
-    test_suite='nose.collector',
     include_package_data=False,
     package_data={'fdb_embedded': ['*.txt'],
                   'test':'fbtest.fdb'},

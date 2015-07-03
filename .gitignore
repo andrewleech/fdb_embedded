@@ -3,3 +3,4 @@ build/
 fdb_embedded/lib
 fdb_embedded.egg-info
 dist
+.tox/
