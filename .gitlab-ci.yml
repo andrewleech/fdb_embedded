@@ -1,0 +1,15 @@
+# https://about.gitlab.com/2015/06/08/implementing-gitlab-ci-dot-yml/
+
+tests:
+    script: "python setup.py test"
+    tags:
+      - python
+    only:
+      - embedded
+
+build:
+    script: "python setup.py bdist_wheel"
+    tags:
+      - python
+    only:
+      - embedded
