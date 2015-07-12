@@ -49,7 +49,6 @@ class dotdict(dict):
     __delattr__= dict.__delitem__
 
 
-
 ## We need to pass something testable to setup(ext_modules=<value>) to trigger pure/plat decision in distutils.command.build.finalize_options()
 ext_modules = [dotdict(name='firebird')]
 
@@ -144,27 +143,34 @@ def download_file(url, dest):
             print(" Done.")
     return file_name
 
-# def rmdir(path):
-#     print("Removing: %s" % path)
-#     if sys.platform == "win32":
-#         os.system("RMDIR /s /q %s" % os.path.normpath(path))
-#     else:
-#         os.system("rm -rf %s" % path)
+def rmdir(path):
+    try:
+        print("Removing: %s" % path)
+        if sys.platform == "win32":
+            os.system("RMDIR /s /q %s" % os.path.normpath(path))
+        else:
+            os.system("chmod -R +w %s" % path)
+            os.system("rm -rf %s" % path)
+    except:
+        remove_tree(path, verbose=False)
+
 
 def extract(filename):
     folder, extension = os.path.splitext(filename)
     if extension.endswith('zip'):
         import zipfile
         if os.path.exists(folder):
-            remove_tree(folder)
-        os.makedirs(folder)
+            rmdir(folder)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         zip = zipfile.ZipFile(filename, 'r')
         zip.extractall(folder)
     else:
         import tarfile
         if os.path.exists(folder):
-            remove_tree(folder)
-        os.makedirs(folder)
+            rmdir(folder)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         tar = tarfile.open(filename, "r")
         tar.extractall(folder)
     return folder
@@ -257,9 +263,8 @@ def download_linux(output_dir):
             raise OSError("chrpath utility not available, please install from package manager")
         for lib in libs:
             os.system("""\
-            CURRENT=`chrpath -l {lib}`
-            chrpath -r '$$ORIGIN:$CURRENT' {lib}
-            """.format(lib=lib))
+            {chrpath} -r '$ORIGIN' {lib}
+            """.format(chrpath=chrpath,lib=lib))
 
         [print("downloaded linux lib: " + lib) for lib in libs]
         return libs
@@ -373,21 +378,24 @@ def firebird_libraries(build_dir):
     if platform == "win32":
         try:
             ret = download_win32(build_dir)
-        except OSError as ex: print("Error in downloaded package: "+ str(ex))
+        except OSError as ex:
+            print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
             ret = build_win32(src_dir)
     elif platform == "darwin":
         try:
            ret = download_osx(build_dir)
-        except OSError as ex: print("Error in downloaded package: "+ str(ex))
+        except OSError as ex:
+            print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
             ret = build_osx(src_dir)
     elif platform.startswith("linux"):
         try:
             ret = download_linux(build_dir)
-        except OSError as ex: print("Error in downloaded package: "+ str(ex))
+        except OSError as ex:
+            print("Error in downloaded package: "+ str(ex))
         if not ret:
             src_dir = download_source(build_dir)
             ret = build_linux(src_dir)
